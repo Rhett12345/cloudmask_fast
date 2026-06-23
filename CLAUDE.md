@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FYLAT — FY-3D MERSI-II Cloud Mask Retrieval System V3.1. Reads FY-3D/E MERSI-II satellite L1 HDF5 data, runs a MODIS MOD35-derived decision-tree cloud detection algorithm, and outputs L2 cloud mask (CLM) and related products in HDF5. Developed by NSMC/CMA (contact: Min Min, minmin@cma.gov.cn).
+FYLAT — FY-3D MERSI-II Cloud Mask Retrieval System V3.1. Reads FY-3D/E MERSI-II satellite L1 HDF5 data, runs a MODIS MOD35-derived decision-tree cloud detection algorithm, and outputs L2 cloud mask (CLM) and related products in HDF5. Developed by the Min Min team at Sun Yat-sen University (中山大学). Team: Min Min (闵敏), Yu Qiang (余强, yuqiang6@mail2.sysu.edu.cn).
 
 ## Build & Run
 
