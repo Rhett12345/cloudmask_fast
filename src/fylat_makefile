@@ -1,0 +1,489 @@
+###########################################################################
+#!make
+#
+#!Makefile Name: makefile
+#
+#!Description: 
+#   Makefile for FY3/MERSI-II Cloud product.
+#              
+#!Author's information
+#   Author: Min Min
+#   E-mail: minmin@cma.gov.cn
+#   Tel   : 86-010-68406763
+#   National Satellite Meteorological Center (NSMC), CMA
+# 
+#
+#!End
+###########################################################################
+
+#-------------------------
+# PATH
+root_path = /home/liusy2020/yuq/cloudmask/retrieval_system_V3.1_cldmask/src/
+cloudmask_path = $(root_path)cloudmask/
+cloudamount_path = $(root_path)cloudamount/
+cloudphase_path = $(root_path)cloudphase/
+cloudheight_path = $(root_path)cloudheight/
+cloudod_day_path = $(root_path)cloudod_day/
+sst_path = $(root_path)sea_surface_temperature/
+
+#-------------------------
+# FLAGS	   
+F77 = ifort 
+F90 = ifort  
+FFLAGS = -c -O3
+#FFLAGS = -c -g -O0 -traceback -check all
+hdf5= h5fc
+CC = icc
+
+#-------------------------
+# Define object files
+FOBJ =	\
+	names_module.o \
+	hdf4.o \
+	constant.o \
+	strcompress.o \
+	strlen.o \
+	strpos.o \
+	strlower.o \
+	data_arrays_module.o \
+	message_module.o \
+	numerical.o \
+	platform_module.o \
+	planck_module.o \
+	frontend_module.o \
+	extem101.o \
+	atmtran.o \
+	rtm_tran_module.o \
+	read_nwp_data_module.o \
+	nwp_utils_module.o \
+	io_module.o  \
+	get_ancil_data_module.o \
+	rtm_utils_module.o \
+	cloudmask_data_arrays.o \
+	param_read_file.o \
+	thresholds_read_module.o \
+	conf_test.o \
+	conf_test_2val.o \
+	tview.o \
+	trispc.o \
+	check_bits.o \
+	clear_bit.o \
+	check_qa_bits.o \
+	set_qa_bit.o \
+	set_bit.o \
+	get_sg_thresholds.o \
+	get_pn_thresholds.o \
+	get_nl_thresholds.o \
+	get_regdif.o \
+	get_regstd.o \
+	spatial_var.o \
+	chk_spatial_var.o \
+	chk_spatial2.o \
+	chk_land.o \
+	chk_land_nite.o \
+	chk_coast.o \
+	chk_sunglint.o \
+	chk_shallow_water.o \
+	pxinit.o \
+	Day_snow.o \
+	Nite_snow.o \
+	Antarctic_day.o \
+	PolarDay_land.o \
+	PolarDay_desert_c.o \
+	PolarDay_desert.o \
+	PolarDay_coast.o \
+	PolarDay_snow.o \
+	PolarDay_ocean.o \
+	PolarNite_land.o \
+	PolarNite_snow.o \
+	PolarNite_ocean.o \
+	LandDay.o \
+	LandNite.o \
+	LandDay_desert_c.o \
+	LandDay_desert.o \
+	LandDay_coast.o \
+	ocean_day.o \
+	ocean_nite.o \
+	polar_module.o \
+	land_module.o \
+	water_module.o \
+	shadows.o \
+	noncld_obs_chk.o \
+	thin_ci_chk_ir.o \
+	proc_path.o \
+	set_unused_bits.o \
+	set_confdnc.o \
+	set_quality_A.o \
+	fill_bit_pixel.o \
+	fylat_fy3mersi_cloud_mask.o \
+	fylat_fy3mersi_cloud_amount.o \
+	cloud_phase_math_module.o \
+	fylat_fy3mersi_cloud_phase.o \
+	fylat_fy3mersi_cloud_height.o \
+	fylat_fy3mersi_cloud_micro_day.o \
+	fylat_fy3mersi_sst.o \
+	io_module_intermediate.o  \
+	fylat_FY3_MERSI_II_PGS_Driver.o 
+
+COBJ =	\
+	optmed.o \
+	optmed_int1.o 
+     
+OBJ =	$(FOBJ) \
+	$(COBJ)
+	
+#-------------------------
+# HDF4/5 lib
+# h4fc/h5fc -show
+#HDF4MYLIB = -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -lmfhdf -ldf -lsz -ljpeg -lz
+#HDF5MYLIB = -I/state/partition1/apps/LIB/include -L/state/partition1/apps/LIB/lib /state/partition1/apps/LIB/lib/libhdf5hl_fortran.a /state/partition1/apps/LIB/lib/libhdf5_hl.a /state/partition1/apps/LIB/lib/libhdf5_fortran.a /state/partition1/apps/LIB/lib/libhdf5.a -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -lsz -lz -lrt -lm -Wl,-rpath -Wl,/state/partition1/apps/LIB/lib
+HDF4MYLIB = -L/opt/intel_lib/lib -L/opt/intel_lib/lib -L/opt/intel_lib/lib -L/opt/intel_lib/lib -lmfhdf -ldf -lsz -ljpeg -lz -ltirpc
+HDF5MYLIB = -I/opt/intel_lib/include -L/opt/intel_lib/lib /opt/intel_lib/lib/libhdf5hl_fortran.a /opt/intel_lib/lib/libhdf5_hl.a /opt/intel_lib/lib/libhdf5_fortran.a /opt/intel_lib/lib/libhdf5.a -L/opt/intel_lib/lib -L/opt/intel_lib/lib -lsz -lz -ldl -lm -Wl,-rpath -Wl,/opt/intel_lib/lib 
+#-------------------------
+# Include files 
+INC_FILES_SCIENCE = \
+      $(cloudmask_path)pfmft_nfmft_thr.inc \
+      $(cloudmask_path)Antarctic_day_thr.inc \
+      $(cloudmask_path)Day_snow_thr.inc \
+      $(cloudmask_path)LandDay_coast_thr.inc \
+      $(cloudmask_path)LandDay_desert_c_thr.inc \
+      $(cloudmask_path)LandDay_desert_thr.inc \
+      $(cloudmask_path)LandDay_thr.inc \
+      $(cloudmask_path)LandNite_thr.inc \
+      $(cloudmask_path)Nite_snow_thr.inc \
+      $(cloudmask_path)PolarDay_coast_thr.inc \
+      $(cloudmask_path)PolarDay_desert_c_thr.inc \
+      $(cloudmask_path)PolarDay_desert_thr.inc \
+      $(cloudmask_path)PolarDay_land_thr.inc \
+      $(cloudmask_path)PolarDay_ocean_thr.inc \
+      $(cloudmask_path)PolarDay_snow_thr.inc \
+      $(cloudmask_path)PolarNite_land_thr.inc \
+      $(cloudmask_path)PolarNite_ocean_thr.inc \
+      $(cloudmask_path)PolarNite_snow_thr.inc \
+      $(cloudmask_path)land_restoral.inc \
+      $(cloudmask_path)noncld_obs_chk.inc \
+      $(cloudmask_path)ocean_day_thr.inc \
+      $(cloudmask_path)ocean_nite_thr.inc \
+      $(cloudmask_path)shadows_thr.inc \
+      $(cloudmask_path)snglntr_thr.inc \
+      $(cloudmask_path)snow_mask.inc \
+      $(cloudmask_path)spatial_var_thr.inc \
+      $(cloudmask_path)swc_ndvi.inc \
+      $(cloudmask_path)global.inc
+
+INC_FILES_SCIENCE2 = $(cloudphase_path)cloud_type_thresholds.inc
+INC_FILES_SCIENCE3 = $(cloudod_day_path)cloud_micro_day.inc
+      
+# Compiler options are set based on IRIX/LINUX environment. On Linux,
+# FORTRAN codes are compiled using LINUX IFORT compilers; 
+# GNU compilers 
+
+#-------------------------
+# Executable name
+TARGET = ../fylat_FY3_MERSI_II_PGS
+
+# Target file (executable)
+$(TARGET): $(OBJ)
+	$(F90) $(OBJ) $(HDF5MYLIB) $(HDF4MYLIB) -o $@ 
+	
+#-------------------------	
+# make clean
+clean:
+	-rm -f $(OBJ) *.mod
+	-rm -f $(OBJ) *.o
+	-rm -f $(OBJ) ../fylat_FY3_MERSI_II_PGS
+
+#---------------------------------------------------
+#-------------- compiler sequence ------------------
+#---------------------------------------------------
+
+#----------------- C code --------------------------
+optmed.o: optmed.c
+	$(CC) $(FFLAGS) optmed.c
+
+optmed_int1.o: optmed_int1.c
+	$(CC) $(FFLAGS) optmed_int1.c
+
+#----------------- Fortran code --------------------
+names_module.o: names_module.f90
+	$(F90) $(FFLAGS) names_module.f90 
+
+hdf4.o: hdf4.f90
+	$(F90) $(FFLAGS) hdf4.f90 
+
+constant.o: constant.f90
+	$(F90) $(FFLAGS) constant.f90
+ 
+strcompress.o: strcompress.f
+	$(F77) $(FFLAGS) strcompress.f
+
+strlower.o: strlower.f
+	$(F77) $(FFLAGS) strlower.f
+
+strlen.o: strlen.f
+	$(F77) $(FFLAGS) strlen.f
+
+strpos.o: strpos.f
+	$(F77) $(FFLAGS) strpos.f
+	
+message_module.o: message_module.f90
+	$(F90) $(FFLAGS) message_module.f90 
+			
+data_arrays_module.o: data_arrays_module.f90
+	$(F90) $(FFLAGS) data_arrays_module.f90 
+
+numerical.o: numerical.f90
+	$(F90) $(FFLAGS) numerical.f90 
+
+platform_module.o: platform_module.f90
+	$(F90) $(FFLAGS) platform_module.f90 
+
+planck_module.o: planck_module.f90
+	$(F90) $(FFLAGS) planck_module.f90 
+	
+frontend_module.o: frontend_module.f90
+	$(F90) $(FFLAGS) frontend_module.f90 
+
+extem101.o: extem101.f
+	$(F77) $(FFLAGS) extem101.f	
+
+atmtran.o: atmtran.f
+	$(F77) $(FFLAGS) atmtran.f
+
+rtm_tran_module.o: rtm_tran_module.f90
+	$(F90) $(FFLAGS) rtm_tran_module.f90
+
+#tranvmodisd101.o: tranvmodisd101.f
+#	$(F77) $(FFLAGS) tranvmodisd101.f
+	
+read_nwp_data_module.o: read_nwp_data_module.f90
+	$(F90) $(FFLAGS) read_nwp_data_module.f90 
+
+nwp_utils_module.o: nwp_utils_module.f90
+	$(F90) $(FFLAGS) nwp_utils_module.f90 			
+			
+io_module.o: io_module.f90
+	$(hdf5) $(FFLAGS) io_module.f90 
+
+get_ancil_data_module.o: get_ancil_data_module.f90
+	$(hdf5) $(FFLAGS) get_ancil_data_module.f90 
+
+rtm_utils_module.o: rtm_utils_module.f90
+	$(hdf5) $(FFLAGS) rtm_utils_module.f90
+	
+#lyj
+io_module_intermediate.o: io_module_intermediate.f90
+	$(hdf5) $(FFLAGS) io_module_intermediate.f90
+
+#-------------------Algorithm---------------------
+##########################
+#--- [1] cloud mask 
+##########################
+cloudmask_data_arrays.o: $(cloudmask_path)cloudmask_data_arrays.f90 
+	$(F90) $(FFLAGS) $(cloudmask_path)cloudmask_data_arrays.f90 
+
+param_read_file.o: $(cloudmask_path)param_read_file.f
+	$(F77) $(FFLAGS) $(cloudmask_path)param_read_file.f
+	
+thresholds_read_module.o: $(cloudmask_path)thresholds_read_module.f90 $(INC_FILES_SCIENCE)
+	$(hdf5) $(FFLAGS) $(cloudmask_path)thresholds_read_module.f90 
+
+conf_test.o: $(cloudmask_path)conf_test.f
+	$(F77) $(FFLAGS) $(cloudmask_path)conf_test.f
+
+conf_test_2val.o: $(cloudmask_path)conf_test_2val.f 
+	$(F77) $(FFLAGS) $(cloudmask_path)conf_test_2val.f
+	
+tview.o: $(cloudmask_path)tview.f
+	$(F77) $(FFLAGS) $(cloudmask_path)tview.f
+
+trispc.o: $(cloudmask_path)trispc.f
+	$(F77) $(FFLAGS) $(cloudmask_path)trispc.f
+
+check_bits.o: $(cloudmask_path)check_bits.f
+	$(F77) $(FFLAGS) $(cloudmask_path)check_bits.f
+	
+clear_bit.o: $(cloudmask_path)clear_bit.f
+	$(F77) $(FFLAGS) $(cloudmask_path)clear_bit.f
+
+check_qa_bits.o: $(cloudmask_path)check_qa_bits.f
+	$(F77) $(FFLAGS) $(cloudmask_path)check_qa_bits.f
+	
+set_qa_bit.o: $(cloudmask_path)set_qa_bit.f
+	$(F77) $(FFLAGS) $(cloudmask_path)set_qa_bit.f
+	
+set_bit.o: $(cloudmask_path)set_bit.f
+	$(F77) $(FFLAGS) $(cloudmask_path)set_bit.f
+
+get_sg_thresholds.o: $(cloudmask_path)get_sg_thresholds.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)get_sg_thresholds.f90
+
+get_pn_thresholds.o: $(cloudmask_path)get_pn_thresholds.f
+	$(F77) $(FFLAGS) $(cloudmask_path)get_pn_thresholds.f
+
+get_nl_thresholds.o: $(cloudmask_path)get_nl_thresholds.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)get_nl_thresholds.f90
+		
+get_regdif.o: $(cloudmask_path)get_regdif.f $(INC_FILES_SCIENCE)
+	$(F77) $(FFLAGS) $(cloudmask_path)get_regdif.f
+
+get_regstd.o: $(cloudmask_path)get_regstd.f $(INC_FILES_SCIENCE)
+	$(F77) $(FFLAGS) $(cloudmask_path)get_regstd.f
+	
+spatial_var.o: $(cloudmask_path)spatial_var.f $(INC_FILES_SCIENCE)
+	$(F77) $(FFLAGS) $(cloudmask_path)spatial_var.f
+
+chk_spatial_var.o: $(cloudmask_path)chk_spatial_var.f $(INC_FILES_SCIENCE)
+	$(F77) $(FFLAGS) $(cloudmask_path)chk_spatial_var.f
+
+chk_spatial2.o: $(cloudmask_path)chk_spatial2.f $(INC_FILES_SCIENCE)
+	$(F77) $(FFLAGS) $(cloudmask_path)chk_spatial2.f
+
+chk_land.o: $(cloudmask_path)chk_land.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)chk_land.f90
+	
+chk_land_nite.o: $(cloudmask_path)chk_land_nite.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)chk_land_nite.f90
+
+chk_coast.o: $(cloudmask_path)chk_coast.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)chk_coast.f90
+		
+chk_sunglint.o: $(cloudmask_path)chk_sunglint.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)chk_sunglint.f90
+
+chk_shallow_water.o: $(cloudmask_path)chk_shallow_water.f $(INC_FILES_SCIENCE)
+	$(F77) $(FFLAGS) $(cloudmask_path)chk_shallow_water.f
+	
+pxinit.o: $(cloudmask_path)pxinit.f
+	$(F77) $(FFLAGS) $(cloudmask_path)pxinit.f
+
+Day_snow.o: $(cloudmask_path)Day_snow.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)Day_snow.f90
+
+Nite_snow.o: $(cloudmask_path)Nite_snow.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)Nite_snow.f90
+
+PolarDay_land.o: $(cloudmask_path)PolarDay_land.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarDay_land.f90
+	
+Antarctic_day.o: $(cloudmask_path)Antarctic_day.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)Antarctic_day.f90
+
+PolarDay_desert_c.o: $(cloudmask_path)PolarDay_desert_c.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarDay_desert_c.f90
+
+PolarDay_desert.o: $(cloudmask_path)PolarDay_desert.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarDay_desert.f90
+
+PolarDay_coast.o: $(cloudmask_path)PolarDay_coast.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarDay_coast.f90
+
+PolarDay_snow.o: $(cloudmask_path)PolarDay_snow.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarDay_snow.f90
+	
+PolarDay_ocean.o: $(cloudmask_path)PolarDay_ocean.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarDay_ocean.f90
+
+PolarNite_land.o: $(cloudmask_path)PolarNite_land.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarNite_land.f90
+	
+PolarNite_snow.o: $(cloudmask_path)PolarNite_snow.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarNite_snow.f90
+	
+PolarNite_ocean.o: $(cloudmask_path)PolarNite_ocean.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)PolarNite_ocean.f90
+		
+LandDay.o: $(cloudmask_path)LandDay.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)LandDay.f90
+
+LandNite.o: $(cloudmask_path)LandNite.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)LandNite.f90
+
+LandDay_desert_c.o: $(cloudmask_path)LandDay_desert_c.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)LandDay_desert_c.f90
+
+LandDay_desert.o: $(cloudmask_path)LandDay_desert.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)LandDay_desert.f90
+
+LandDay_coast.o: $(cloudmask_path)LandDay_coast.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)LandDay_coast.f90
+			
+ocean_nite.o: $(cloudmask_path)ocean_nite.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)ocean_nite.f90
+			
+ocean_day.o: $(cloudmask_path)ocean_day.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)ocean_day.f90
+
+polar_module.o: $(cloudmask_path)polar_module.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)polar_module.f90
+	
+land_module.o: $(cloudmask_path)land_module.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)land_module.f90
+			
+water_module.o: $(cloudmask_path)water_module.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)water_module.f90
+
+shadows.o: $(cloudmask_path)shadows.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)shadows.f90
+
+noncld_obs_chk.o: $(cloudmask_path)noncld_obs_chk.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)noncld_obs_chk.f90
+
+thin_ci_chk_ir.o: $(cloudmask_path)thin_ci_chk_ir.f90 $(INC_FILES_SCIENCE)
+	$(F90) $(FFLAGS) $(cloudmask_path)thin_ci_chk_ir.f90
+
+proc_path.o: $(cloudmask_path)proc_path.f
+	$(F77) $(FFLAGS) $(cloudmask_path)proc_path.f
+
+set_unused_bits.o: $(cloudmask_path)set_unused_bits.f
+	$(F77) $(FFLAGS) $(cloudmask_path)set_unused_bits.f
+
+set_confdnc.o: $(cloudmask_path)set_confdnc.f
+	$(F77) $(FFLAGS) $(cloudmask_path)set_confdnc.f
+
+set_quality_A.o: $(cloudmask_path)set_quality_A.f
+	$(F77) $(FFLAGS) $(cloudmask_path)set_quality_A.f
+
+fill_bit_pixel.o: $(cloudmask_path)fill_bit_pixel.f90
+	$(F90) $(FFLAGS) $(cloudmask_path)fill_bit_pixel.f90
+							
+fylat_fy3mersi_cloud_mask.o: $(cloudmask_path)fylat_fy3mersi_cloud_mask.f90 $(INC_FILES_SCIENCE)
+	$(hdf5) $(FFLAGS) $(cloudmask_path)fylat_fy3mersi_cloud_mask.f90 
+
+##########################
+#--- [2] cloud amount 
+##########################
+fylat_fy3mersi_cloud_amount.o: $(cloudamount_path)fylat_fy3mersi_cloud_amount.f90
+	$(hdf5) $(FFLAGS) $(cloudamount_path)fylat_fy3mersi_cloud_amount.f90 
+	
+##########################
+#--- [3] cloud phase and type
+##########################
+cloud_phase_math_module.o: $(cloudphase_path)cloud_phase_math_module.f90
+	$(hdf5) $(FFLAGS) $(cloudphase_path)cloud_phase_math_module.f90 
+	
+fylat_fy3mersi_cloud_phase.o: $(cloudphase_path)fylat_fy3mersi_cloud_phase.f90 $(INC_FILES_SCIENCE2)
+	$(hdf5) $(FFLAGS) $(cloudphase_path)fylat_fy3mersi_cloud_phase.f90 
+
+##########################
+#--- [4] cloud top properties
+##########################
+fylat_fy3mersi_cloud_height.o: $(cloudheight_path)fylat_fy3mersi_cloud_height.f90
+	$(hdf5) $(FFLAGS) $(cloudheight_path)fylat_fy3mersi_cloud_height.f90 
+
+##########################
+#--- [5] cloud optical depth at daytime
+##########################
+fylat_fy3mersi_cloud_micro_day.o: $(cloudod_day_path)fylat_fy3mersi_cloud_micro_day.f90 $(INC_FILES_SCIENCE3)
+	$(hdf5) $(FFLAGS) $(cloudod_day_path)fylat_fy3mersi_cloud_micro_day.f90 	
+
+##########################
+#--- [6] sst 
+##########################
+fylat_fy3mersi_sst.o: $(sst_path)fylat_fy3mersi_sst.f90 
+	$(hdf5) $(FFLAGS) $(sst_path)fylat_fy3mersi_sst.f90 
+
+#-------------------Algorithm---------------------
+	
+fylat_FY3_MERSI_II_PGS_Driver.o: fylat_FY3_MERSI_II_PGS_Driver.f90
+	$(hdf5) $(FFLAGS) fylat_FY3_MERSI_II_PGS_Driver.f90 

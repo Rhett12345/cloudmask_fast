@@ -1,0 +1,6 @@
+*.o
+*.mod
+fylat_FY3_MERSI_II_PGS
+.codegraph/
+coeff/fylat_ecosystem.hdf
+coeff/sfc_emiss/
