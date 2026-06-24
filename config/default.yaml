@@ -1,0 +1,52 @@
+# FYLAT FY-3D MERSI-II Cloud Mask — Default Configuration
+# This file defines all configurable parameters with sensible defaults.
+# Scene-specific overrides go in config/scenes/<date>_<time>.yaml
+
+sensor:
+  id: 21                  # 21=FY-3D MERSI-II, 22=FY-3E MERSI-II
+  nwp_opt: 10             # NWP source: 1=ncep1x1, 2=gfs1x1, 3=T639, 4=ncep_grib2,
+                           #   5=gfs0p50, 6=grapes, 7=gdas0p25, 8=gfs0p25,
+                           #   9=gfs0p50_41L, 10=gfs0p25_41L
+  rtm_opt: 1              # RTM option: 0=none, 1=PFAAST
+
+paths:
+  code_root: "/home/liusy2020/yuq/cloudmask/fy3_cloudmask_fortran/"
+  l1b_data: "/data/Data_yuq/mersi/"
+  nwp_data: "/data/nwp/"
+  oisst_data: "/data/Data_minmin/oisst/"
+  output: "/data/Data_yuq/fy3_cloud/"
+
+# Scene-specific settings (paths below are auto-derived if left empty)
+scene:
+  date: "20220803"        # YYYYMMDD
+  time: "0740"            # HHMM
+  calibration: "business" # "business" (onboard) or "recali" (external coeffs)
+
+# Manual file path overrides (auto-derived from scene if empty)
+input:
+  geo_file: ""
+  l1b_file: ""
+  nwp_grib1: ""
+  nwp_grib2: ""
+  oisst_file: ""
+
+output:
+  clm_file: ""
+  cla_file: ""
+  clp_file: ""
+  ctp_file: ""
+  cot_file: ""
+  con_file: ""
+  sst_file: ""
+  intermediate_file: ""
+
+algorithms:
+  cloudmask: true
+  cloudamount: false
+  cloudphase: false
+  cloudtopz: false
+  cloudtau_day: false
+  cloudtau_night: false
+  cloudtypeII: false
+  surface_sst: false
+  write_intermediate: false

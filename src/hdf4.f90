@@ -94,12 +94,10 @@
 !    Climate and Radiation Branch, Code 913
 !    NASA/GSFC
 !    Greenbelt MD 20771
-!    Robert.Pincus@gsfc.nasa.gov
 !    
 !   Revised by 
 !    Min Min
 !    National Satellite Meteorological Center 
-!    minmin@cma.gov.cn
 !
 ! !Design Notes:
 !

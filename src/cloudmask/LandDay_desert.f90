@@ -52,7 +52,6 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
 !!References and Credits:
 ! See Cloud Mask ATBD-MOD-06.
 ! 1996/4/3 13:55:25
-! K. Strabala (kathys@ssec.wisc.edu)
 ! Original version.
 !
 !!Design Notes:

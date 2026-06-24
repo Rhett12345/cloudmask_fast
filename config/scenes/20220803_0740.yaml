@@ -1,0 +1,18 @@
+# 2022-08-03 07:40 UTC — FY-3D MERSI-II
+# Overrides the default config for this specific orbit
+
+scene:
+  date: "20220803"
+  time: "0740"
+
+# NWP: gfs0p25_41L for this date
+sensor:
+  nwp_opt: 10
+
+# Actual input files for this orbit
+input:
+  geo_file: "/data/Data_yuq/mersi/20220803/FY3D_MERSI_GBAL_L1_20220803_0740_GEO1K_MS.HDF"
+  l1b_file: "/data/Data_yuq/mersi/20220803/FY3D_MERSI_GBAL_L1_20220803_0740_1000M_MS.HDF"
+  nwp_grib1: "/data/nwp/20220803/ORG/gfs.t06z.pgrb2.0p25.f018"
+  nwp_grib2: "/data/nwp/20220803/ORG/gfs.t06z.pgrb2.0p25.f021"
+  oisst_file: "/data/Data_minmin/oisst/sst.day.mean.20200401.hdf5"
