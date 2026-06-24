@@ -112,9 +112,6 @@ def load_mersi_l1b(l1b_path: str) -> dict | None:
 
         rgb = _stretch_rgb(rgb)
 
-        # Transpose to match CLM lat/lon axis order (elem, line) ← (line, elem)
-        rgb = np.transpose(rgb, (1, 0, 2))
-
         return {"rgb": rgb, "lat": lat, "lon": lon, "path": l1b_path}
 
     except Exception as e:
@@ -159,12 +156,14 @@ def _stretch_rgb(rgb: np.ndarray, lo_pct: float = 2, hi_pct: float = 98) -> np.n
 # 3.  MERSI CLM reader  (HDF5)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def load_clm_hdf5(path: str) -> dict | None:
+def load_clm_hdf5(path: str, geo_root: str = "/data/Data_yuq/mersi") -> dict | None:
     """
-    Read MERSI CLM from HDF5.  Handles two storage conventions:
+    Read MERSI CLM from HDF5.  Handles three storage conventions:
 
       Flat:   /cm, /conf, /lat, /lon  (root-level datasets)
       Group:  Cloud_Mask_1km/  (grouped datasets)
+      Raw:    /Cloud_Mask (N,H,W) raw bitmask, /Quality_Assurance (M,H,W)
+              — lat/lon loaded from external GEO HDF5 file.
 
     Returns
     -------
@@ -176,19 +175,20 @@ def load_clm_hdf5(path: str) -> dict | None:
         return None
     try:
         with h5py.File(path, "r") as f:
-            # Auto-detect structure: flat (/cm, /lat, /lon) vs grouped (Cloud_Mask_1km/)
+            lat, lon, clm = None, None, None
+
+            # ── Convention A: flat cm/conf/lat/lon ──
             if "cm" in f:
-                # Flat structure
                 lat = f["lat"][:].astype(np.float64)
                 lon = f["lon"][:].astype(np.float64)
                 clm = f["cm"][:].astype(np.int32)
-                # If cm is all zeros, try deriving from conf
                 if np.all(clm == 0) and "conf" in f:
                     derived = _clm_from_confidence(f["conf"][:].astype(np.float64))
                     if np.any(derived >= 0):
                         clm = derived
+
+            # ── Convention B: Cloud_Mask_1km group ──
             elif "Cloud_Mask_1km" in f:
-                # Original grouped structure
                 grp = f["Cloud_Mask_1km"]
                 lat = grp["Latitude"][:].astype(np.float64)
                 lon = grp["Longitude"][:].astype(np.float64)
@@ -201,9 +201,28 @@ def load_clm_hdf5(path: str) -> dict | None:
                     derived = _clm_from_confidence(grp["Confidence"][:])
                     if np.any(derived >= 0):
                         clm = derived
+
+            # ── Convention C: raw /Cloud_Mask bitmask (N,H,W) ──
+            elif "Cloud_Mask" in f:
+                cm_raw = f["Cloud_Mask"][:]
+                clm = _decode_bitmask(cm_raw)
+                # Try to read embedded geolocation; if absent, load from GEO file
+                lat, lon = _read_embedded_geo(f)
+                if lat is None:
+                    geo_path = find_geo_for_clm(path, geo_root)
+                    if geo_path:
+                        lat, lon = _read_geo_from_file(geo_path)
+                    else:
+                        print(f"[ERROR] No GEO file found for {path}")
+                        return None
+
             else:
                 print(f"[ERROR] Unknown HDF5 structure in {path}")
                 return None
+
+        if lat is None or lon is None or clm is None:
+            print(f"[ERROR] Incomplete data in {path}")
+            return None
 
         lat = np.where((lat < -90)  | (lat > 90),   np.nan, lat)
         lon = np.where((lon < -180) | (lon > 180),  np.nan, lon)
@@ -215,17 +234,74 @@ def load_clm_hdf5(path: str) -> dict | None:
         print(f"[ERROR] Loading CLM {path}: {e}")
         return None
 
+
+def _read_embedded_geo(f: h5py.File) -> tuple[np.ndarray | None, np.ndarray | None]:
+    """Try to find lat/lon inside a CLM HDF5."""
+    for lp, lonp in [
+        ("lat", "lon"),
+        ("Latitude", "Longitude"),
+        ("Geolocation/Latitude", "Geolocation/Longitude"),
+    ]:
+        if lp in f and lonp in f:
+            return (f[lp][:].astype(np.float64),
+                    f[lonp][:].astype(np.float64))
+    return None, None
+
+
+def _read_geo_from_file(geo_path: str) -> tuple[np.ndarray | None, np.ndarray | None]:
+    """Read lat/lon from a MERSI GEO HDF5 file."""
+    try:
+        with h5py.File(geo_path, "r") as f:
+            for lp, lonp in [
+                ("Geolocation/Latitude", "Geolocation/Longitude"),
+                ("Latitude", "Longitude"),
+            ]:
+                if lp in f and lonp in f:
+                    return (f[lp][:].astype(np.float64),
+                            f[lonp][:].astype(np.float64))
+    except Exception as e:
+        print(f"[ERROR] Reading GEO {geo_path}: {e}")
+    return None, None
+
+
+def find_geo_for_clm(
+    clm_path: str,
+    mersi_root: str | Path = "/data/Data_yuq/mersi",
+) -> str | None:
+    """Locate the MERSI GEO 1-km HDF file corresponding to a CLM file."""
+    m = re.search(r'(\d{8})_(\d{4})', os.path.basename(clm_path))
+    if not m:
+        return None
+    date_str, time_tag = m.group(1), m.group(2)
+    p = (Path(mersi_root) / date_str /
+         f"FY3D_MERSI_GBAL_L1_{date_str}_{time_tag}_GEO1K_MS.HDF")
+    return str(p) if p.exists() else None
+
 def _decode_bitmask(cm_raw: np.ndarray) -> np.ndarray:
-    """Decode 3-byte (or more) CLM bitmask array → class 0-3."""
-    byte0     = cm_raw[:, :, 0].astype(np.uint8)
-    processed = (byte0 & 0x01).astype(bool)
-    b1        = (byte0 >> 1) & 1
-    b2        = (byte0 >> 2) & 1
-    result    = np.full(byte0.shape, -1, dtype=np.int32)
-    result[processed & (b2 == 0) & (b1 == 0)] = 0
-    result[processed & (b2 == 0) & (b1 == 1)] = 1
-    result[processed & (b2 == 1) & (b1 == 0)] = 2
-    result[processed & (b2 == 1) & (b1 == 1)] = 3
+    """Decode multi-byte CLM bitmask array → class 0-3.
+
+    Handles two storage conventions:
+      • (H, W, N)  — last axis is byte index
+      • (N, H, W)  — first axis is byte index
+
+    Fortran ibset convention (LSB-based, matches HDF5 byte storage):
+      bit 0 (value 1):   Cloud Mask Flag   (0=not determined, 1=determined)
+      bits 1-2 (values 2,4): FOV Quality   (00=Cloudy, 01=Uncertain,
+                                              10=Probably Clear, 11=Confident Clear)
+    """
+    if cm_raw.ndim == 3 and cm_raw.shape[0] < cm_raw.shape[-1]:
+        byte0 = cm_raw[0].astype(np.uint8)           # (N, H, W) → byte 0
+    elif cm_raw.ndim == 3:
+        byte0 = cm_raw[:, :, 0].astype(np.uint8)     # (H, W, N) → byte 0
+    else:
+        byte0 = cm_raw.astype(np.uint8)
+
+    determined = (byte0 & 1).astype(bool)              # bit 0 (LSB) = processed flag
+    cat_bits   = (byte0 >> 1) & 3                     # bits 1-2 = cloud category
+
+    result = np.full(byte0.shape, -1, dtype=np.int32)
+    result[determined] = cat_bits[determined]          # 0=cloudy, 1=uncertain,
+                                                       # 2=prob_clear, 3=conf_clear
     return result
 
 

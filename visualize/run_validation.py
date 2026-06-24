@@ -180,21 +180,41 @@ def run_single_orbit(
 def find_orbit_pairs(data_dir: str) -> list[tuple[str, str, str, str]]:
     """
     Scan data_dir for onboard/recal CLM pairs.
+    Handles two naming conventions:
+      • Legacy:  *_CLM_CLA.h5  / *_CLM_CLA_recal.h5
+      • Current: *_BUSINESS.HDF / *_RECALI.HDF
+
     Returns list of (onboard_path, recal_path, date_str, time_str).
     """
     pairs = []
+    # ── Current naming: *_BUSINESS.HDF / *_RECALI.HDF ──
+    for business in sorted(Path(data_dir).rglob("*_BUSINESS.HDF")):
+        recal = business.with_name(
+            business.name.replace("_BUSINESS.HDF", "_RECALI.HDF"))
+        if not recal.exists():
+            continue
+        m = re.search(r'(\d{8})_(\d{4})', business.name)
+        if not m:
+            continue
+        pairs.append((str(recal), str(business), m.group(1), m.group(2)))
+
+    # ── Legacy naming: *_CLM_CLA.h5 / *_CLM_CLA_recal.h5 ──
     for onboard in sorted(Path(data_dir).rglob("*_CLM_CLA.h5")):
         if "_recal" in onboard.name:
             continue
         recal = onboard.with_name(
             onboard.name.replace("_CLM_CLA.h5", "_CLM_CLA_recal.h5"))
         if not recal.exists():
-            print(f"[WARN] Missing recal for {onboard.name}")
             continue
         m = re.search(r'(\d{8})_(\d{4})', onboard.name)
         if not m:
             continue
-        pairs.append((str(onboard), str(recal), m.group(1), m.group(2)))
+        # avoid duplicate
+        tag = (m.group(1), m.group(2))
+        if any(p[2] == tag[0] and p[3] == tag[1] for p in pairs):
+            continue
+        pairs.append((str(recal), str(onboard), tag[0], tag[1]))
+
     return pairs
 
 

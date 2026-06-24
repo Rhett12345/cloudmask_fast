@@ -32,7 +32,7 @@ F77 = ifort
 F90 = ifort  
 FFLAGS = -c -O3
 #FFLAGS = -c -g -O0 -traceback -check all
-hdf5= h5fc
+hdf5= /opt/intel_lib/bin/h5fc
 CC = icc
 
 #-------------------------

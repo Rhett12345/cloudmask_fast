@@ -53,7 +53,7 @@ from plot_utils import (
     plot_rgb, plot_rgb_placeholder, plot_clm, plot_diff,
     add_clm_colorbar, add_diff_colorbar,
     stats_caption_text, agreement_caption_text,
-    get_extent, save_figure,
+    get_extent, save_figure, choose_projection,
 )
 from io_mersi import (
     load_clm_hdf5, load_mersi_l1b, find_l1b_for_clm,
@@ -78,6 +78,7 @@ def _build_figure1(
     """Render and save the 4-panel Figure 1."""
     apply_nature_style()
 
+    projection, is_polar = choose_projection(lat)
     extent = get_extent(lat, lon, recal_clm, step=step)
 
     fig_w = PANEL_WIDTH_IN * 2 + 1.2
@@ -97,7 +98,7 @@ def _build_figure1(
     ]
     letters = ["a", "b", "c", "d"]
     specs   = [gs[0, 0], gs[0, 1], gs[1, 0], gs[1, 1]]
-    axs     = [make_geo_ax_with_caption(fig, sp) for sp in specs]
+    axs     = [make_geo_ax_with_caption(fig, sp, projection=projection) for sp in specs]
 
     # ── (a) RGB ─────────────────────────────────────────────────────
     ax = axs[0]

@@ -183,9 +183,9 @@ endif
     call get_pxldat(ielem,iline,pelev,pxldat,satzen,solzen,rela,glint,eco_type,u_wind,v_wind,precip_water,tbadj) ! revised by minmin 
  
 !--  get water sfc temp
-    if ((water .or. coast) .and. sat%sst(ielem,iline)>100.0) then
-        sfctmp  = sat%sst(ielem,iline)
-    endif
+!      if ((water .or. coast) .and. sat%sst(ielem,iline)>100.0) then
+!          sfctmp  = sat%sst(ielem,iline)
+!      endif
     
 !--- check edge
     call chk_ele_lin_edge(ielem,iline,line_edge,ele_edge) ! revised by minmin 

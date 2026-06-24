@@ -57,7 +57,7 @@ from plot_utils import (
     add_clm_colorbar, add_diff_colorbar,
     stats_caption_text, agreement_caption_text,
     get_extent, subsample, save_figure,
-    CLM_LABEL_SHORT,
+    CLM_LABEL_SHORT, choose_projection,
 )
 from io_mersi import print_clm_distribution
 
@@ -321,6 +321,8 @@ def _build_figure2(
     """Build and save Figure 2.  Returns dict of validation stats."""
     apply_nature_style()
 
+    projection, is_polar = choose_projection(mersi_lat)
+
     myd35_resampled = myd35_data["clm_resampled"]
     myd_dt = myd35_data.get("dt")
     dt_min = myd35_data.get("dt_diff_min", 0)
@@ -353,7 +355,7 @@ def _build_figure2(
         "Confusion matrices",
     ]
 
-    axs_geo = [make_geo_ax_with_caption(fig, panel_specs[i]) for i in range(5)]
+    axs_geo = [make_geo_ax_with_caption(fig, panel_specs[i], projection=projection) for i in range(5)]
     ax_conf = fig.add_subplot(panel_specs[5])
 
     # ── (a) MERSI RGB ───────────────────────────────────────────────

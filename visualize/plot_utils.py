@@ -34,7 +34,8 @@ v2.1 — pcolormesh rendering
 Exports
 -------
 apply_nature_style()
-make_geo_ax(fig, spec) → ax
+choose_projection(lat) → ccrs projection instance
+make_geo_ax(fig, spec, projection) → ax
 add_gridlines(ax)
 panel_label(ax, letter)
 panel_title(ax, text)
@@ -199,12 +200,62 @@ def clamp_extent(extent: list, pad: float = 0.0) -> list:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Projection selector
+# ─────────────────────────────────────────────────────────────────────────────
+
+def choose_projection(lat: np.ndarray, polar_threshold: float = 0.5):
+    """
+    Choose an appropriate Cartopy projection based on the latitude distribution
+    of the swath.
+
+    Rules
+    -----
+    * If > ``polar_threshold`` (default 50 %) of valid pixels lie at
+      |lat| ≥ 60°, use a polar-stereographic projection centred on
+      the dominant pole (North or South).
+    * Otherwise fall back to ``PlateCarree`` (standard equirectangular),
+      which handles all mid-/low-latitude swaths without distortion.
+
+    Parameters
+    ----------
+    lat : np.ndarray
+        2-D (or 1-D) array of latitudes in decimal degrees.
+    polar_threshold : float
+        Fraction of valid pixels that must exceed |lat| ≥ 60° to trigger
+        a polar projection.  Default 0.5 (50 %).
+
+    Returns
+    -------
+    projection : cartopy.crs.CRS
+        A Cartopy CRS instance ready to pass to ``add_subplot(projection=…)``.
+    is_polar : bool
+        True when a polar projection was selected.
+    """
+    valid = lat[np.isfinite(lat)]
+    if len(valid) == 0:
+        return ccrs.PlateCarree(), False
+
+    polar_frac = np.mean(np.abs(valid) >= 60.0)
+    if polar_frac <= polar_threshold:
+        return ccrs.PlateCarree(), False
+
+    # Dominant pole: whichever hemisphere contains more polar pixels
+    n_north = np.sum(valid >= 60.0)
+    n_south = np.sum(valid <= -60.0)
+    central_lat = float(np.median(valid))
+
+    if n_north >= n_south:
+        return ccrs.NorthPolarStereo(central_longitude=0.0), True
+    else:
+        return ccrs.SouthPolarStereo(central_longitude=0.0), True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Axes / basemap helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def make_geo_ax(fig: plt.Figure, spec) -> plt.Axes:
-    """Create a Cartopy PlateCarree axis with Nature-style basemap."""
-    ax = fig.add_subplot(spec, projection=ccrs.PlateCarree())
+def _add_basemap_features(ax: plt.Axes) -> None:
+    """Add land/ocean/coast/border features to any geo axis."""
     ax.set_facecolor(OCEAN_COLOR)
     ax.add_feature(_safe(cfeature.OCEAN),     facecolor=OCEAN_COLOR, zorder=0)
     ax.add_feature(_safe(cfeature.LAND),      facecolor=LAND_COLOR,  zorder=1)
@@ -213,6 +264,24 @@ def make_geo_ax(fig: plt.Figure, spec) -> plt.Axes:
                    edgecolor=COAST_COLOR, facecolor="none", zorder=4)
     ax.add_feature(_safe(cfeature.BORDERS),   linewidth=0.3,
                    edgecolor=BORDER_COLOR, facecolor="none", linestyle="--", zorder=4)
+
+
+def make_geo_ax(fig: plt.Figure, spec, projection=None) -> plt.Axes:
+    """Create a Cartopy geo axis with Nature-style basemap.
+
+    Parameters
+    ----------
+    projection : cartopy.crs.CRS or None
+        Pass the result of ``choose_projection(lat)`` to use a polar
+        stereographic projection for high-latitude swaths.  Defaults to
+        ``PlateCarree`` when None.
+    """
+    if projection is None:
+        projection = ccrs.PlateCarree()
+    ax = fig.add_subplot(spec, projection=projection)
+    _add_basemap_features(ax)
+    # Tag so gridline helper knows which formatter to use
+    ax._is_polar = not isinstance(projection, ccrs.PlateCarree)
     return ax
 
 
@@ -220,10 +289,18 @@ def make_geo_ax_with_caption(
     fig: plt.Figure,
     spec,
     caption_frac: float = 0.10,
+    projection=None,
 ) -> plt.Axes:
     """
     Create a Cartopy map axis PLUS a dedicated caption sub-axes stacked
     directly beneath it, using a nested GridSpec inside `spec`.
+
+    Parameters
+    ----------
+    projection : cartopy.crs.CRS or None
+        Pass the result of ``choose_projection(lat)`` to activate polar
+        stereographic projection for high-latitude swaths.  Defaults to
+        ``PlateCarree`` when None.
 
     This guarantees the caption has its own reserved vertical band that
     never overlaps the map, its gridline tick labels, or the panel
@@ -235,36 +312,43 @@ def make_geo_ax_with_caption(
     """
     from matplotlib.gridspec import GridSpecFromSubplotSpec
 
+    if projection is None:
+        projection = ccrs.PlateCarree()
+
     inner = GridSpecFromSubplotSpec(
         2, 1, subplot_spec=spec,
         height_ratios=[1 - caption_frac, caption_frac],
         hspace=0.0,
     )
-    ax     = fig.add_subplot(inner[0, 0], projection=ccrs.PlateCarree())
+    ax     = fig.add_subplot(inner[0, 0], projection=projection)
     cap_ax = fig.add_subplot(inner[1, 0])
     cap_ax.set_axis_off()
     ax._caption_ax = cap_ax
 
-    ax.set_facecolor(OCEAN_COLOR)
-    ax.add_feature(_safe(cfeature.OCEAN),     facecolor=OCEAN_COLOR, zorder=0)
-    ax.add_feature(_safe(cfeature.LAND),      facecolor=LAND_COLOR,  zorder=1)
-    ax.add_feature(_safe(cfeature.LAKES),     facecolor=LAKE_COLOR,  zorder=1)
-    ax.add_feature(_safe(cfeature.COASTLINE), linewidth=0.5,
-                   edgecolor=COAST_COLOR, facecolor="none", zorder=4)
-    ax.add_feature(_safe(cfeature.BORDERS),   linewidth=0.3,
-                   edgecolor=BORDER_COLOR, facecolor="none", linestyle="--", zorder=4)
+    _add_basemap_features(ax)
+    # Tag so gridline helper knows which formatter to use
+    ax._is_polar = not isinstance(projection, ccrs.PlateCarree)
     return ax
 
 
 def add_gridlines(ax: plt.Axes) -> None:
+    """Add gridlines with degree labels, adapting to polar vs. PlateCarree."""
+    is_polar = getattr(ax, "_is_polar", False)
     gl = ax.gridlines(draw_labels=True, linewidth=0.3,
                       color=GRID_COLOR, alpha=0.9, linestyle=":")
     gl.top_labels   = False
     gl.right_labels = False
-    gl.xformatter   = LONGITUDE_FORMATTER
-    gl.yformatter   = LATITUDE_FORMATTER
-    gl.xlabel_style = {"size": 6.5, "color": "#444444"}
-    gl.ylabel_style = {"size": 6.5, "color": "#444444"}
+    if is_polar:
+        # Polar-stereo projections do not support LONGITUDE_FORMATTER /
+        # LATITUDE_FORMATTER — leave formatters as the Cartopy default
+        # (plain degree numbers), which renders correctly.
+        gl.xlabel_style = {"size": 6.5, "color": "#444444"}
+        gl.ylabel_style = {"size": 6.5, "color": "#444444"}
+    else:
+        gl.xformatter   = LONGITUDE_FORMATTER
+        gl.yformatter   = LATITUDE_FORMATTER
+        gl.xlabel_style = {"size": 6.5, "color": "#444444"}
+        gl.ylabel_style = {"size": 6.5, "color": "#444444"}
 
 
 def panel_label(ax: plt.Axes, letter: str, fontsize: int = 11) -> None:

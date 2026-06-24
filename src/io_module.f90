@@ -373,6 +373,8 @@ real(kind=4), dimension(4)                          :: interp4, slope4
 integer(kind=4)                                     :: i,j,k
 
 integer(kind=4)                                     :: vis_id ! added by minmin
+logical                                              :: vis_flag
+character(len=20)                                    :: cal_mode_str
 
 !--------------- read fy3 mersi-II variables ----------------------
 print*,'  ... read L1b HDF5 data'
@@ -428,6 +430,14 @@ if (fylat_sensor_id == 2 .or. fylat_sensor_id == 21) then  !'Sensor_id=2 / FY3D-
    call h5dclose_f(sds_id_var, error)    ! close 
    
    vis_id = 0 ! install new calibration coefficients
+   inquire(file='cal_mode.txt', exist=vis_flag)
+   if (vis_flag) then
+      open(23,file='cal_mode.txt',status='old')
+      read(23,*,err=4301) cal_mode_str
+      close(23)
+      if (trim(cal_mode_str) == 'recali') vis_id = 1
+   endif
+4301 continue
    if (vis_id == 1) then
    	  ! --- B02
       !sat%vis_cal_coef(1,2) = -3.4390

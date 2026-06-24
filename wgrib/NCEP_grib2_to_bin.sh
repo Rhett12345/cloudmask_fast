@@ -35,7 +35,7 @@ for name in "${NameList[@]}"
 #for name in "${NameList2[@]}"
 do
     #echo $name
-    wgrib2 -set local_table 1 -s $NCEPFile | grep "$name" |wgrib2 -i $NCEPFile -no_header -append -bin $OutFile >/dev/null
+    /opt/software/grib2/wgrib2/wgrib2 -set local_table 1 -s $NCEPFile | grep "$name" |/opt/software/grib2/wgrib2/wgrib2 -i $NCEPFile -no_header -append -bin $OutFile >/dev/null
 done
-#wgrib2 -set local_table 1 -s $NCEPFile | grep "TMP:2 m above ground" |wgrib2 -i $NCEPFile -no_header -append -text $OutFile
-#wgrib2 -set local_table 1 -s $NCEPFile | grep "$name" |wgrib2 -i $NCEPFile -no_header -append -bin $OutFile
+#/opt/software/grib2/wgrib2/wgrib2 -set local_table 1 -s $NCEPFile | grep "TMP:2 m above ground" |/opt/software/grib2/wgrib2/wgrib2 -i $NCEPFile -no_header -append -text $OutFile
+#/opt/software/grib2/wgrib2/wgrib2 -set local_table 1 -s $NCEPFile | grep "$name" |/opt/software/grib2/wgrib2/wgrib2 -i $NCEPFile -no_header -append -bin $OutFile

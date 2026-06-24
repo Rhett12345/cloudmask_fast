@@ -48,7 +48,7 @@ rm -rf $BinFile
 for name in "${NameList[@]}"
 do
     #echo $name
-    wgrib2 -set local_table 1 -s $T639File | grep "$name" |wgrib2 -i $T639File -no_header -append -bin $BinFile >/dev/null
+    /opt/software/grib2/wgrib2/wgrib2 -set local_table 1 -s $T639File | grep "$name" |/opt/software/grib2/wgrib2/wgrib2 -i $T639File -no_header -append -bin $BinFile >/dev/null
 done
-#wgrib2 -set local_table 1 -s $T639File | grep "TMP:2 m above ground" |wgrib2 -i $T639File -no_header -append -text $BinFile
-#wgrib2 -set local_table 1 -s $T639File | grep "$name" |wgrib2 -i $T639File -no_header -append -bin $BinFile
+#/opt/software/grib2/wgrib2/wgrib2 -set local_table 1 -s $T639File | grep "TMP:2 m above ground" |/opt/software/grib2/wgrib2/wgrib2 -i $T639File -no_header -append -text $BinFile
+#/opt/software/grib2/wgrib2/wgrib2 -set local_table 1 -s $T639File | grep "$name" |/opt/software/grib2/wgrib2/wgrib2 -i $T639File -no_header -append -bin $BinFile

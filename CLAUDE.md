@@ -78,3 +78,11 @@ Namelist format (`.nml`). Key parameters:
 - **Debug artifacts**: Variables prefixed `lyj` (e.g., `out_*` arrays in cloudmask) and comments marked `jincheng test` are developer debug markers, not production code.
 - **Comment-out convention**: Disabled code is commented out (not deleted or `#ifdef`-gated), across both Fortran and the makefile.
 - **clean.sh is broken**: References `fylat_makefile` instead of `fylat_makefile_cldmask`.
+
+## 特别说明
+- 每次回答前都需要说一句“打报告”，然后再进行回答
+- 测试的日期为20220803，该日期所对应的MYD35数据集为标准验证集
+- 测试的输出目录为/data/Data_yuq/fy3_cloud,在该目录下创建yyyymmdd目录进行存放
+- /data/Data_yuq/mersi和/data/Data_yuq/aqua_modis/MYD35_L2/,/data/nwp/为现阶段所需数据的存放目录
+- 每次都需要测试两个定标系数，针对于太阳反射波段的七个通道，分别分为数据文件内置的业务定标以及我存放在../fy3d_recali按日期分类的再定标系数
+- 虚拟环境为cloudmask
