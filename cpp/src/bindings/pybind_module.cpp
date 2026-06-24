@@ -2,6 +2,7 @@
 #include <pybind11/numpy.h>
 
 #include "fylat/cloudmask_core.hpp"
+#include "fylat/cloudmask_spatial.hpp"
 #include "fylat/constants.hpp"
 #include "fylat/global_params.hpp"
 
@@ -130,4 +131,43 @@ PYBIND11_MODULE(fylat_core, m) {
           py::arg("coast"), py::arg("desert"), py::arg("smoke"),
           py::arg("shadow"), py::arg("testbits"),
           "Determine processing path and set bit flags");
+
+    // -- Spatial / auxiliary functions (selected testable subset) --
+    m.def("spatial_var",
+          [](py::array_t<float> diff, py::array_t<float> dovar11) {
+              auto d = diff.unchecked<2>();
+              auto dv = dovar11.unchecked<1>();
+              float d_arr[2][8];
+              for (int b = 0; b < 2; ++b)
+                  for (int i = 0; i < 8; ++i)
+                      d_arr[b][i] = d(b, i);
+              float dovar[1] = {dv(0)};
+              int ipt, result;
+              fylat::spatial_var(d_arr, dovar, ipt, result);
+              return std::make_pair(ipt, result);
+          },
+          py::arg("diff"), py::arg("dovar11"),
+          "Spatial uniformity test — returns (ipt, result)");
+
+    m.def("shadows",
+          [](py::array_t<float> pxldat, bool visusd,
+             float shadnir0, float shadnir1, float shavrat0,
+             py::array_t<uint8_t> qa_bits_arr) {
+              auto pd = pxldat.unchecked<1>();
+              auto qb = qa_bits_arr.mutable_unchecked<1>();
+              float px[25];
+              for (int i = 0; i < 25; ++i) px[i] = pd(i);
+              float sn[2] = {shadnir0, shadnir1};
+              float sv[1] = {shavrat0};
+              fylat::QABits qa;
+              std::copy(qb.data(0), qb.data(0) + 10, qa.begin());
+              bool shadow;
+              fylat::shadows(px, visusd, sn, sv, shadow, qa);
+              std::copy(qa.begin(), qa.end(), qb.mutable_data(0));
+              return shadow;
+          },
+          py::arg("pxldat"), py::arg("visusd"),
+          py::arg("shadnir0"), py::arg("shadnir1"), py::arg("shavrat0"),
+          py::arg("qa_bits"),
+          "Cloud shadow detection");
 }
