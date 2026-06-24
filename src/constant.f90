@@ -11,11 +11,6 @@ module constant
 !C 
 !C !Output parameters
 !C
-!C !Author's information
-!C    Author: Min Min
-!C    E-mail: minmin@cma.gov.cn
-!C    Tel   : 86-010-68406763
-!C    National Satellite Meteorological Center 
 !C  
 !C !End
 !C----------------------------------------------------------------------

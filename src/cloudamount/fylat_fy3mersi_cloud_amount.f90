@@ -12,11 +12,6 @@ module fylat_fy3mersi_cloud_amount
 !C !Output parameters
 !C    none
 !C
-!C !Author's information
-!C    Author: Min Min
-!C    E-mail: minmin@cma.gov.cn
-!C    Tel   : 86-010-68406763
-!C    National Satellite Meteorological Center, CMA 
 !C  
 !C !END
 !C----------------------------------------------------------------------

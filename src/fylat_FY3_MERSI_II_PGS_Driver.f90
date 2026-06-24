@@ -11,11 +11,6 @@ program fylat_FY3_MERSI_II_Driver
 !
 ! output parameters:
 !
-! Author's information
-!    Author: Min Min
-!    E-mail: minmin@cma.gov.cn
-!    Tel   : 86-010-68406763
-!    National Satellite Meteorological Center (NSMC), CMA
 !
 !-----------------------------------------------------------------------
 

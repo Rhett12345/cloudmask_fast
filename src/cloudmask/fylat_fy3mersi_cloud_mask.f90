@@ -12,11 +12,6 @@ module fylat_fy3mersi_cloud_mask
 !C !Output parameters
 !C    none
 !C
-!C !Author's information
-!C    Author: Min Min/Wu Xiao/Zheng Zhaojun/Liu Ruixia/Zhang Miao/Yang Changjun/Qiu Hong
-!C    E-mail: minmin@cma.gov.cn
-!C    Tel   : 86-010-68406763
-!C    National Satellite Meteorological Center, CMA 
 !C  
 !C !END
 !C----------------------------------------------------------------------
@@ -392,6 +387,21 @@ end do line_loop_1
 cm => null()
 qa => null()
    
+! deallocate debug output arrays
+if (associated(out_pwater))  deallocate(out_pwater)
+if (associated(out_sfctmp))  deallocate(out_sfctmp)
+if (associated(out_polar))   deallocate(out_polar)
+if (associated(out_day))     deallocate(out_day)
+if (associated(out_night))   deallocate(out_night)
+if (associated(out_land))    deallocate(out_land)
+if (associated(out_water))   deallocate(out_water)
+if (associated(out_coast))   deallocate(out_coast)
+if (associated(out_snglnt))  deallocate(out_snglnt)
+if (associated(out_snow))    deallocate(out_snow)
+if (associated(out_ice))     deallocate(out_ice)
+if (associated(out_desert))  deallocate(out_desert)
+if (associated(out_uniform)) deallocate(out_uniform)
+if (associated(out_shadow))  deallocate(out_shadow)
 end subroutine fy3mersi_cloud_mask
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

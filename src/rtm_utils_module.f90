@@ -12,11 +12,6 @@ module rtm_utils_module
 ! !Output parameters
 !    none
 !
-! !Author's information
-!    Author: Min Min
-!    E-mail: minmin@cma.gov.cn
-!    Tel   : 86-010-68406763
-!    National Satellite Meteorological Center 
 !  
 ! !end
 !----------------------------------------------------------------------

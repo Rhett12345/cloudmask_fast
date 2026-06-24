@@ -13,11 +13,6 @@ module io_module
 !C !Output parameters
 !C    none
 !C
-!C !Author's information
-!C    Author: Min Min
-!C    E-mail: minmin@cma.gov.cn
-!C    Tel   : 86-010-68406763
-!C    National Satellite Meteorological Center 
 !C  
 !C !END
 !C----------------------------------------------------------------------
@@ -372,9 +367,10 @@ real(kind=4), dimension(2)                          :: interp2, slope2
 real(kind=4), dimension(4)                          :: interp4, slope4
 integer(kind=4)                                     :: i,j,k
 
-integer(kind=4)                                     :: vis_id ! added by minmin
+integer(kind=4)                                     :: vis_id
 logical                                              :: vis_flag
 character(len=20)                                    :: cal_mode_str
+integer(kind=4)                                     :: io_err, rd_err
 
 !--------------- read fy3 mersi-II variables ----------------------
 print*,'  ... read L1b HDF5 data'
@@ -430,14 +426,19 @@ if (fylat_sensor_id == 2 .or. fylat_sensor_id == 21) then  !'Sensor_id=2 / FY3D-
    call h5dclose_f(sds_id_var, error)    ! close 
    
    vis_id = 0 ! install new calibration coefficients
-   inquire(file='cal_mode.txt', exist=vis_flag)
-   if (vis_flag) then
-      open(23,file='cal_mode.txt',status='old')
-      read(23,*,err=4301) cal_mode_str
-      close(23)
-      if (trim(cal_mode_str) == 'recali') vis_id = 1
+   if (fylat_alg_opt%cloudmask_index == 1) then
+      inquire(file=trim(code_root_path)//'cal_mode.txt', exist=vis_flag)
+      if (vis_flag) then
+         open(23,file=trim(code_root_path)//'cal_mode.txt',status='old',iostat=io_err)
+         if (io_err == 0) then
+            read(23,*,iostat=rd_err) cal_mode_str
+            close(23)
+            if (rd_err == 0 .and. trim(cal_mode_str) == 'recali') vis_id = 1
+         else
+            close(23)
+         endif
+      endif
    endif
-4301 continue
    if (vis_id == 1) then
    	  ! --- B02
       !sat%vis_cal_coef(1,2) = -3.4390
@@ -454,13 +455,20 @@ if (fylat_sensor_id == 2 .or. fylat_sensor_id == 21) then  !'Sensor_id=2 / FY3D-
       ! --- B08
       !sat%vis_cal_coef(1,8) = -1.9084
       !sat%vis_cal_coef(2,8) = 0.0101
-      open(22,file='VIS_Cal_Coeff.xcfg',status='old')
-      read(22,*) dummy 
-      do i = 1, 19
-         read(22,*) IC,sat%vis_cal_coef(1,i),sat%vis_cal_coef(2,i)
-         print*,'test = ',IC,sat%vis_cal_coef(1,i),sat%vis_cal_coef(2,i)
-      enddo
-      close(22)
+      open(22,file='VIS_Cal_Coeff.xcfg',status='old',iostat=io_err)
+      if (io_err == 0) then
+         read(22,*,iostat=rd_err) dummy
+         if (rd_err == 0) then
+            do i = 1, 19
+               read(22,*,iostat=rd_err) IC,sat%vis_cal_coef(1,i),sat%vis_cal_coef(2,i)
+               if (rd_err /= 0) exit
+            enddo
+         endif
+         close(22)
+      else
+         print*,'WARNING: VIS_Cal_Coeff.xcfg not found, using built-in calibration'
+         vis_id = 0
+      endif
    endif
    
    call h5dopen_f (file_id, '/Calibration/IR_Cal_Coeff', sds_id_var, error)

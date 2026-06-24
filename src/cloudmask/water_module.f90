@@ -12,11 +12,6 @@ module water_module
 !! !Output parameters
 !!    none
 !!
-!! !Author's information
-!!    Author: Min Min/Wu Xiao/Zheng Zhaojun/Liu Ruixia/Zhang Miao/Yang Changjun/Qiu Hong
-!!    E-mail: minmin@cma.gov.cn
-!!    Tel   : 86-010-68406763
-!!    National Satellite Meteorological Center, CMA 
 !!  
 !! !END
 !!----------------------------------------------------------------------
