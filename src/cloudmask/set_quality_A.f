@@ -37,19 +37,10 @@ c ... array arguments
       byte qa_bits(10)
 
 c ... local scalars
-      integer debug,h_output
+      ! (none)
 
 c ... external subroutines
       external set_qa_bit
-
-c ... Common statement for debug purposes
-!      common / bug / debug, h_output
-
-c ... debug statement ............................................
-!      if (debug .gt. 0) then
-!        write(h_output,'(10x/,''Within set_quality_A routine '',/)')
-!      endif
-c ...............................................................
 
 
 c ... set number of spectral tests applied bits
@@ -83,13 +74,6 @@ c ... Set the Land/Sea Mask file
         call set_qa_bit(qa_bits,70)
         call set_qa_bit(qa_bits,71)
       endif
-
-c ... debug statement ............................................
-!      if (debug .gt. 0) then
-!        write(h_output,'(10x,'' qa bits:    nmtest   nbands'',2i10,/)')
-!     *        nmtests,nbands
-!      endif
-c ................................................................
 
       return
       end

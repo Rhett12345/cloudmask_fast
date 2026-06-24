@@ -49,20 +49,11 @@ c     array arguments
       real indat(necntx,nlcntx,inband)
 
 c     local scalars
-      integer imv,ide,i,j,k,nl,debug,h_output
+      integer imv,ide,i,j,k,nl
       double precision n,num,den,sqsum,sumsq,sum,tbb,sig,mn
 
 c     local arrays
       real rgdata(nlcntx,necntx)
-
-c ... Common statement for debug purposes
-!      common / bug / debug, h_output
-
-c ... debug statement ............................................
-!      if (debug .gt. 0) then
-!        write(h_output,'(10x/,''Within routine get_regstd.f'',/)')
-!      endif
-c ................................................................
 
 c     Initialize variables.
 

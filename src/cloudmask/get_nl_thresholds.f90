@@ -72,8 +72,5 @@
        
       end if
 
-!     write(*,'(10f7.2)') btdiff,bt_diff_bounds,lo_val_thr,hi_val_thr,
-!    *     conf_range,a,midpt,hicut,locut
-
       return
       end

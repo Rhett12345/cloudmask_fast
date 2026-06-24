@@ -10,3 +10,4 @@ coeff/plod/
 __pycache__/
 temp_fy3d_config_*.nml
 cal_mode.txt
+cpp/build/

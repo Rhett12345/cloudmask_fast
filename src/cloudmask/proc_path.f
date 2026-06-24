@@ -47,20 +47,8 @@ c ... scalar arguments ..
 c ... array arguments
       byte testbits(6)
 
-c ... local scalars ..
-      integer debug,h_output
-
 c     external subroutines
       external set_bit,clear_bit
-
-c ... Common statement for debug purposes
-!      common / bug / debug, h_output
-
-c ... debug statement ............................................
-!      if (debug .gt. 0) then
-!        write(h_output,'(10x/,''Within proc_path testing routine '',/)')
-!      endif
-c ...............................................................
 
 c ...
 c     Set snow/ice bit.
@@ -103,16 +91,6 @@ c     Set the Non-cloud obstruction flag (currently related to smoke)
       if (smoke) then
          call clear_bit(testbits,8)
       endif
-
-c ......  debug statement ............................................
-!      if (debug .gt. 0) then
-!        write(h_output,'(15x,'' PROC_PATH variables '',/)')
-!        write(h_output,'(2x,'' Day  Ice  Desert  Snow  Snglnt Land Water
-!     + Coast Smoke'',/,3L5,2x,8L6)') day,ice,desert,snow,snglnt,land,
-!     + water,coast,smoke
-!      endif
-c ................................................................
-
 
       return
       end

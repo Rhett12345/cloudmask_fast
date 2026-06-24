@@ -33,16 +33,7 @@ c ... array arguments
       byte testbits(6)
 
 c ... local scalars
-      integer debug,h_output
-
-c ... Common statement for debug purposes
-!      common / bug / debug, h_output
-
-c ... debug statement ............................................
-!      if (debug .gt. 0) then
-!        write(h_output,'(10x/,''Within set_confdnc routine '',/)')
-!      endif
-c ...............................................................
+      ! (none)
 
       if(confdnc .gt. 0.99) then
         call set_bit(testbits,1)
@@ -52,15 +43,6 @@ c ...............................................................
       else if(confdnc .gt. 0.66) then
         call set_bit(testbits,1)
       end if
-
-c ... debug statement ............................................
-!      if (debug .gt. 0) then
-!        write(h_output,'(10x,'' confidence value: '',f10.2,/)')
-!     *        confdnc
-!        write(h_output,'(10x,'' First byte values: '',i10,/)')
-!     *        testbits(1)
-!      endif
-c ................................................................
 
       return
       end

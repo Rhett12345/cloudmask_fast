@@ -10,9 +10,7 @@
       implicit none
       save
 
-c ... Common statement for debug purposes
-      !common / bug / debug, h_output
-
+c ... Common statement for debug purposes — removed dead debug code
 c----------------------------------------------------------------------
 C!F77 
 c
@@ -87,11 +85,9 @@ c
 c!END
 c----------------------------------------------------------------------
 
-      !include 'global.inc'
-
 c     scalar arguments
       real vza,precip_water,plat,plon,sfctmp,pmsl,u_wind,v_wind
-      integer lsf,nmtests,nbands,nbad_1km,nbad_250,geo_flag(5)
+      integer lsf,nmtests,nbands,nbad_1km,nbad_250
       logical polar,day,night,land,water,snglnt,visusd,snow,ice,uniform,
      +        bad_value,shadow,coast,desert,vrused,smoke,cirrus_vis,
      +        cirrus_ir,bad_geo,hi_elev,antarctic,sh_ocean,sg_bad_data,
@@ -101,17 +97,11 @@ c     array arguments
       byte testbits(6),qa_bits(10)
 
 c     local scalars
-      integer i !,debug,h_output
+      integer i
 
 c     external subroutines
       external set_bit
 
-c ... debug statement ............................................
-      !if (debug .gt. 0) then
-      !  write(h_output,'(10x/,''Subroutine pxinit.f '',/)')
-      !endif
-c ...............................................................
-       
 c     First initialize the bit holder
 c     Initialize output "bit" array.  All bits are initialized to
 c     0 with the exception of the thin cirrus, shadow and non-cloud
@@ -122,11 +112,6 @@ c     data bits are filled once for each granule.
         if (i .le. 6) testbits(i) = 0 
         qa_bits(i) = 0
       end do
-
-c ... Initialize the geolocation bad data flag holder
-c     do i = 1 , 5
-c        geo_flag(i) = 0
-c     end do
 
 c     NCO bit
       call set_bit(testbits,8)

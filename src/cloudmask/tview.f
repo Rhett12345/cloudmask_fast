@@ -45,12 +45,11 @@ c ... scalar arguments ..
 c ...
 c ... local scalars ..
       real lt0,lt1,lt2,lu0,lu1,lu2,p,p0,p1,p2,t,t0,t1,t2,u,u0,u1,u2
-      integer i,i0,i1,i2,ii,j,j0,j1,j2,jj,Iflag,debug,h_output
+      integer i,i0,i1,i2,ii,j,j0,j1,j2,jj,Iflag
 c ...
 c ... local arrays ..
       real tab(5,13),ttab(13),utab(5)
 
-!      common / bug / debug, h_output
 c ...
 c ... data statements ..
  
@@ -175,12 +174,6 @@ c ...   interpolating polynomial for second dimension
         p = p0*lt0 + p1*lt1
 c ...
         corr = p
-
-c ..... Debug statement.  ........................................
-!        if(debug .eq. 4) then
-!          write(h_output,'(''tview '',7f8.3)') u0,u1,t0,t1,p0,p1,p
-!        end if
-c ................................................................
 
         return
 

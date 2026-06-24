@@ -2,23 +2,20 @@ subroutine fill_bit_pixel(nmtests,nbands,bad_value,bad_geo,           &
                           snglnt,desert,testbits,qa_bits,bitarray,    &
                           qa_bitarray)
 
-!use cloudmask_data_arrays
-
       implicit none
       save
 
 !----------------------------------------------------------------------
-!!F77 
+!!F77
 !
 !!Description:
 !     Routine for placing results of the cloud mask product and
 !     qa array into a line of data values.
 !
 !!Input parameters:
-! nc            Current processing element
 ! nmtests       Number of tests applied to this pixel
 ! nbands        Number of bands successfully read for this pixel
-! bad_value     Logical value indicating band radiance or reflectance 
+! bad_value     Logical value indicating band radiance or reflectance
 !               value
 ! bad_geo       Logical variable flagging bad lat/long data
 ! snglnt        Logical variables where true indicates sun glint
@@ -40,31 +37,18 @@ subroutine fill_bit_pixel(nmtests,nbands,bad_value,bad_geo,           &
 !!END
 !----------------------------------------------------------------------
 
-!      include 'global.inc'
-
 !     scalar arguments
-      integer nc,nmtests,nbands
+      integer nmtests,nbands
       logical bad_value,snglnt,desert,bad_geo
 
 !     scalar arrays
-      byte testbits(6),bitarray(6),qa_bits(10),qa_bitarray(10) 
+      byte testbits(6),bitarray(6),qa_bits(10),qa_bitarray(10)
 
-!     local scalars 
-      integer i,debug,h_output
+!     local scalars
+      integer i
 
 !     external routines
       external set_bit,set_qa_bit
-
-! ... Common statement for debug purposes
-!      common / bug / debug, h_output
-
-! ... debug statement ............................................
-!      if (debug .gt. 0) then
-!        write(h_output,'(10x/,''Within fill_bit_line routine '',/)')
-!        write(h_output,'(10x/,''Bad_value,Bad_geo, desert, sunglint= '',
-!     +        4L5,/)') bad_value, bad_geo, desert, snglnt
-!      endif
-! .............................................................
 
 ! ... Fill in final pixel values before putting into line
 !     array.  This is where the quality of the cloud mask

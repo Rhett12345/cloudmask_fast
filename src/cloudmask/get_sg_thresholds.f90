@@ -38,7 +38,6 @@
       real refang,locut,hicut,midpt,power
 
 !     Local scalars.
-      integer debug, h_output
       real lo_ang,hi_ang,lo_ang_val,hi_ang_val,a,conf_range
 
 !     Common statement for debug purposes
@@ -83,16 +82,6 @@
         locut = midpt + conf_range
        
       end if
-
-!---------------------------------------------------------------------
-
-!     Debug statement
-!      if(debug .gt. 1) then
-!        write(h_output,'(5f10.3)') snglnt_bounds,refang
-!        write(h_output,'(5f10.3)') a,midpt,hicut,locut,power
-!      end if
-
-!---------------------------------------------------------------------
 
       return
       end

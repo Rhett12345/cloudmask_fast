@@ -33,21 +33,8 @@ c-------------------------------------------------------------------
 c ... arguments ..
       byte testbits(6)
 
-c ... local scalars ..
-      integer debug,h_output
-
 c ... external subroutines
       external set_bit
-
-c ... Common statement for debug purposes
-!      common / bug / debug, h_output
-
-
-c ... debug statement ............................................
-!      if (debug .gt. 1) then
-!        write(h_output,'(10x/,''Within unused bits routine '',/)')
-!      endif
-c ................................................................
 
 c     Set temporal consistency test bit
       call set_bit(testbits,24)
