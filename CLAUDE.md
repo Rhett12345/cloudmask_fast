@@ -15,14 +15,18 @@ conda activate cloudmask
 # Build (Intel ifort + icc + HDF5 required)
 ./build.sh            # runs: cd src && make -f fylat_makefile_cldmask
 
-# Clean (NOTE: clean.sh references wrong makefile name; use manually)
+# Clean
 cd src && make clean -f fylat_makefile_cldmask && cd ..
 
-# Single run
+# One-command end-to-end run (auto-discover, build, both calibrations, verify)
+python run_fylat.py --date 20220803
+python run_fylat.py --date 20220803 --cores 4
+
+# Single run (manual)
 ./fylat_FY3_MERSI_II_PGS config.nml
 
-# Batch run (modify paths/date range in the script first)
-python3 paral_bat_driver_mersi_ii_fylat.py
+# Single run (YAML-based)
+python scripts/run_single.py --date 20220803 --time 0740 --calibration business
 ```
 
 Compiler toolchain: `ifort` (Fortran), `icc` (C), `h5fc` (HDF5 Fortran wrapper). HDF4/HDF5 libs at `/opt/intel_lib/lib/` — hardcoded in the makefile.
@@ -74,10 +78,9 @@ Namelist format (`.nml`). Key parameters:
 
 - **Mixed Fortran 77/90**: `.f` files are fixed-format F77 (many lack `implicit none`); `.f90` files are free-format. The makefile uses `ifort` for both but `h5fc` for HDF5-dependent modules.
 - **No version control**: No `.git` directory. Consider this before destructive edits.
-- **Hardcoded paths**: Makefile has absolute paths for HDF libs and `root_path`. Namelist files contain absolute data paths. Changing machines requires updating these.
+- **Hardcoded paths**: Makefile uses `FYLAT_ROOT_PATH` and `HDF5_ROOT` env vars (with defaults). Namelist files contain absolute data paths. Changing machines requires updating these.
 - **Debug artifacts**: Variables prefixed `lyj` (e.g., `out_*` arrays in cloudmask) and comments marked `jincheng test` are developer debug markers, not production code.
 - **Comment-out convention**: Disabled code is commented out (not deleted or `#ifdef`-gated), across both Fortran and the makefile.
-- **clean.sh is broken**: References `fylat_makefile` instead of `fylat_makefile_cldmask`.
 
 ## 特别说明
 - 每次回答前都需要说一句“打报告”，然后再进行回答
