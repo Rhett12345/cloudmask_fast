@@ -99,7 +99,6 @@ subroutine land_day(pxldat,vza,visusd,vrused,cirrus_vis,             &
                LandDay_coast,chk_land,chk_coast
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !-----------------------------------------------------------------------
 
@@ -231,14 +230,13 @@ subroutine land_nite(pxldat,plat,vza,ice,snow,coast,tbadj,desert,   &
       byte testbits(6),qa_bits(10)
 
 !     local scalars
-      integer debug,h_output
+      integer
       logical lnd
 
 !     external subroutines
       external LandNite,Nite_snow,chk_land_nite
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !----------------------------------------------------------------------
 

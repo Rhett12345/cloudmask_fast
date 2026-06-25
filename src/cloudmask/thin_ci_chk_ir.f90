@@ -53,7 +53,7 @@
       real cosvza,pi,dtr,masdf1,masir11,masir12,schi,dfthrsh,ci1,ci2,   &
            diftemp
       logical code
-      integer debug,h_output
+      integer
       real, parameter :: Rel_equality_EPS = 0.000001
 
 ! ... external subroutines ..
@@ -63,7 +63,6 @@
       intrinsic cos
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !     Routine which checks for the presence of thin cirrus. This check 
 !     is made independently of other spectral tests which may check

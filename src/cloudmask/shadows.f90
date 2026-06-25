@@ -44,10 +44,9 @@
 ! ...
 ! ... local scalars ..
       real masv88,masv66,masv945,vrat,masv124
-      integer debug,h_output
+      integer
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ...
       masv66 = pxldat(3)

@@ -104,7 +104,7 @@
       real c1,c2,c3,c4,c5,c6,cosvza,dfthrsh,diftemp,dtr,m31_22,m31_32,    &
            m31,m32,m22,m26,m02,pi,schi,m27,cmin1,cmin2,cmin3,cmin4,    &
            pre_confdnc,groups,fac,locut,hicut,masir11,masir12
-      integer nptests,kk,debug,h_output
+      integer nptests,kk
 
 !     Local arrays.
       real hicuta(2),locuta(2),midpta(2)
@@ -114,7 +114,6 @@
       external conf_test,conf_test_2val,tview,set_bit,clear_bit,set_qa_bit
 
 !     Common statement for debug variables.
-!      common / bug / debug, h_output
         
 !----------------------------------------------------------------------
 

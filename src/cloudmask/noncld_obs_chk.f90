@@ -60,13 +60,12 @@
       logical thk_smoke,fire,bit_test
       real masv21,masv66,masir3,masir11,tdif,coef,masir12,tdiff,    &
            masv55,masv47,masv86,smkrat,vrat,sigma,masir3f,mean
-      integer band,debug,h_output,j
+      integer band,j
 
 ! ... local arrays
       integer bitno(4),rtn(4),rtnqa(4)
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !     Routine which checks for the possible presence of smoke.
 

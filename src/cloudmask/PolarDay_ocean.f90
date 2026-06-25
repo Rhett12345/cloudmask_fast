@@ -89,7 +89,7 @@
            cmin1,cmin2,cmin3,cmin4,tri_thres,fac,groups,                   &
            pre_confdnc,c11,locut,hicut,midpt,power,c10,sst_thrsh,          &
            a,corr,sfcdif
-      integer nptests,rtn,debug,h_output,kk
+      integer nptests,rtn,kk
       real, parameter :: Rel_equality_EPS = 0.000001
       real, parameter :: max_vza = 65.49
          
@@ -108,7 +108,6 @@
       intrinsic acos,cos
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ...
 ! ... initialize variables

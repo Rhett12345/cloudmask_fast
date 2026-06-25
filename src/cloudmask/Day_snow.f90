@@ -74,7 +74,7 @@ subroutine Day_snow(pxldat,vza,visusd,cirrus_vis,hi_elev,   &
            masir11,masir13,masir4,masv188,masir65,masir12,             &
            groups,fac,pre_confdnc,schi,cosvza,masdf1,pi,dtr,diftemp,   &
            dfthrsh
-      integer nptests,kk,debug,h_output
+      integer nptests,kk
 
 ! ... local arrays
       integer ngtests(3)
@@ -86,7 +86,6 @@ subroutine Day_snow(pxldat,vza,visusd,cirrus_vis,hi_elev,   &
       external conf_test,set_bit,clear_bit,set_qa_bit,tview
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ... initialize variables
       pi = acos(-1.0)

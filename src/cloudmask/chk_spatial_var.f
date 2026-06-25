@@ -53,7 +53,6 @@ c     External subroutines
       external get_regdif,spatial_var,set_qa_bit,set_bit
 
 c     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 c---------------------------------------------------------------------
 

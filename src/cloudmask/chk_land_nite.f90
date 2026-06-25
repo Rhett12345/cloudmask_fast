@@ -49,7 +49,6 @@
       external check_bits,check_qa_bits,set_qa_bit
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !     Set bit numbers to test in "final test".
       data bitno /14,15,17,23/

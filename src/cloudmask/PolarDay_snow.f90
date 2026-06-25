@@ -74,7 +74,7 @@
       real c1,c2,c3,c4,mas11_4,cmin1,cmin2,cmin4,pi,dtr,masdf1,cosvza,schi,   &
            masir11,masir12,masir4,masv188,masir65,groups,                  &
            fac,pre_confdnc,diftemp,dfthrsh,locut,hicut,c6,midpt,power
-      integer nptests,kk,debug,h_output
+      integer nptests,kk
 
 ! ... local arrays
       integer ngtests(3)
@@ -86,7 +86,6 @@
       external conf_test,set_bit,clear_bit,set_qa_bit,tview
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ... initialize variables
       pi = acos(-1.0)

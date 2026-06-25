@@ -107,7 +107,7 @@ subroutine polar_day(pxldat,vza,snglnt,visusd,refang,vrused,               &
       byte testbits(6),qa_bits(10)
 
 !     local scalars
-      integer debug,h_output
+      integer
 
 !     external subroutines
       external PolarDay_snow,PolarDay_land,PolarDay_ocean,PolarDay_coast,    &
@@ -115,7 +115,6 @@ subroutine polar_day(pxldat,vza,snglnt,visusd,refang,vrused,               &
                chk_spatial_var,chk_shallow_water
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !----------------------------------------------------------------------
 
@@ -277,7 +276,7 @@ subroutine polar_nite(pxldat,vza,land,ice,snow,desert,hi_elev,         &
       byte testbits(6),qa_bits(10)
 
 !     local scalars
-      integer debug,h_output
+      integer
 
 !     local arrays
 
@@ -285,7 +284,6 @@ subroutine polar_nite(pxldat,vza,land,ice,snow,desert,hi_elev,         &
       external PolarNite_snow,PolarNite_land,PolarNite_ocean,chk_spatial_var
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !----------------------------------------------------------------------
 

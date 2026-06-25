@@ -65,7 +65,6 @@
 
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !---------------------------------------------------------------------
 

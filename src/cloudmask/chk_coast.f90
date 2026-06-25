@@ -42,7 +42,7 @@
       byte testbits(6),qa_bits(10)
 
 !     Local scalars
-      integer rtn,debug,h_output
+      integer rtn
       real ndvi
       logical irclr
 
@@ -50,7 +50,6 @@
       external check_bits,set_bit,set_qa_bit
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !---------------------------------------------------------------------
 

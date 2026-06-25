@@ -109,7 +109,7 @@
            cmin1,cmin2,cmin3,cmin4,tri_thres,fac,groups,          &
            pre_confdnc,locut,hicut,midpt,power,max_vza,a,corr,    &
            sfcdif,c10,sst_thrsh
-      integer nptests,rtn,debug,h_output,kk
+      integer nptests,rtn,kk
 
 !     Local arrays.
       real hicuta(2),locuta(2),midpta(2)
@@ -130,7 +130,6 @@
       intrinsic acos,cos
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !-------------------------------------------------------------------
 

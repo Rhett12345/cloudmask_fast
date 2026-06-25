@@ -73,7 +73,7 @@
       real c1,c2,c3,mas11_4,cmin1,cmin2,        &
            masir11,masir4,locut,hicut,       &
            masir65,groups,fac,pre_confdnc,midpt,power,masir12
-      integer nptests,kk,debug,h_output
+      integer nptests,kk
 
 ! ... local arrays
       integer ngtests(3)
@@ -84,7 +84,6 @@
       external conf_test,set_bit,clear_bit,set_qa_bit
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ...
 ! ... nmtests counts the number of tests applied to this pixel

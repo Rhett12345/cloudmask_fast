@@ -808,7 +808,6 @@ subroutine snow_mask(pxldat0,     &
 !      save
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, *
 
 !---------------------------------------------------------------------
 !
@@ -1057,7 +1056,6 @@ subroutine check_reg_uniformity(ielem,iline,line_edge,ele_edge, &
 
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !--------------------------------------------------------------------
 !!F90

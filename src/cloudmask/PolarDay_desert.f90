@@ -83,7 +83,7 @@
            masir65,c7,cmin1,cmin2,cmin3,cmin4,pre_confdnc,          &
            groups,fac,locut,hicut
       real, parameter :: Rel_equality_EPS = 0.000001
-      integer nptests,kk,debug,h_output
+      integer nptests,kk
 ! ...
 ! ... local arrays ..
       real hicuta(2),locuta(2),midpta(2)
@@ -93,7 +93,6 @@
       external conf_test,conf_test_2val,tview,set_bit,clear_bit,set_qa_bit
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 ! ...
 ! ... initialize variables
       pi = acos(-1.0)

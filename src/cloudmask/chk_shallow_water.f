@@ -42,7 +42,7 @@ c     Array arguments
       byte testbits(6),qa_bits(10)
 
 c     Local scalars
-      integer rtn,debug,h_output
+      integer rtn
       real ndvi
       logical irclr
 
@@ -50,7 +50,6 @@ c     External subroutines
       external check_bits,set_bit,set_qa_bit
 
 c     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 c---------------------------------------------------------------------
 

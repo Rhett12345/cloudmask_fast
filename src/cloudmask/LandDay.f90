@@ -84,7 +84,7 @@ subroutine LandDay(pxldat,vza,visusd,vrused,cirrus_vis,   &
            eta,etad,etan,locut,hicut,s1,s2, tv11_12
       real, parameter :: Rel_equality_EPS = 0.000001
  
-      integer nptests,debug,h_output,kk
+      integer nptests,kk
 ! ...
 ! ... local arrays ..
       integer ngtests(4)
@@ -93,7 +93,6 @@ subroutine LandDay(pxldat,vza,visusd,vrused,cirrus_vis,   &
       external conf_test,tview,set_bit,clear_bit,set_qa_bit
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ... initialize variables
       pi = acos(-1.0)

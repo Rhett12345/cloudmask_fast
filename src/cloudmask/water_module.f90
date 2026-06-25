@@ -89,13 +89,12 @@ subroutine water_day(pxldat,vza,snglnt,visusd,refang,cirrus_vis,     &
       byte testbits(6),qa_bits(10)
 
 !     local scalars
-!      integer debug,h_output
+!      integer
 
 !     external subroutines
       !external ocean_day,Day_snow,chk_spatial_var,chk_sunglint,chk_shallow_water
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !---------------------------------------------------------------------
 
@@ -227,7 +226,7 @@ subroutine water_nite(pxldat,vza,uniform,ice,snow,indat,sfctmp,sh_ocean, &
       byte testbits(6),qa_bits(10)
 
 !     local scalars
-      integer debug,h_output
+      integer
       logical lnd
 
 !     local arrays
@@ -236,7 +235,6 @@ subroutine water_nite(pxldat,vza,uniform,ice,snow,indat,sfctmp,sh_ocean, &
 !      external ocean_nite,Nite_snow,chk_spatial_var
 
 !     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 !---------------------------------------------------------------------
 !

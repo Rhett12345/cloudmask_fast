@@ -45,7 +45,6 @@ c     External subroutines
       external get_regdif,spatial_var
 
 c     Common statement for debug purposes
-!      common / bug / debug, h_output
 
 c---------------------------------------------------------------------
 

@@ -72,7 +72,7 @@
            c3,masir65,mas11_4,c4,cmin1,cmin2,cmin5,fac,            &
            pre_confdnc,groups,pi,dtr,masdf1,cosvza,schi,diftemp,   &
            dfthrsh,locut,hicut,c5,midpt,masir7,mas7_11,c6,power
-      integer nptests,debug,h_output,kk
+      integer nptests,kk
 
 !     local arrays
       integer ngtests(3)
@@ -83,7 +83,6 @@
       external conf_test,set_bit,set_qa_bit,tview
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ... initialize variables
 

@@ -87,7 +87,7 @@
            fac,pre_confdnc,tri_thres,c7,diftemp,dfthrsh,schi,     &
            cosvza,dtr,pi,dwvs,midpt,locut,hicut,c9,               &
            c10,sfcdif,a,corr,c11,np,sst_thrsh
-      integer nptests,rtn,kk,debug,h_output,npix
+      integer nptests,rtn,kk,npix
 
       real, parameter :: Rel_equality_EPS = 0.000001
       real, parameter :: max_vza = 65.49
@@ -104,7 +104,6 @@
                clear_bit,chk_spatial2
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ... compute degrees-to-radians conversion
       pi = acos(-1.0)

@@ -93,7 +93,7 @@
            fac,pre_confdnc,c5,masdf1,schi,cosvza,dtr,pi,diftemp,   &
            dfthrsh,locut,hicut,masir73,mas7_11,c6,                 &
            power,midpt,a,c9,sfcdif,corr,lst_thrsh,masdf2
-      integer nptests,debug,h_output,kk
+      integer nptests,kk
       ! added by minmin
       real masir37, mas37_12, delta_t
 
@@ -107,7 +107,6 @@
       external conf_test,set_bit,set_qa_bit,tview,get_nl_thresholds
 
 ! ... Common statement for debug purposes
-!      common / bug / debug, h_output
 
 ! ... initialize variables
       pi = acos(-1.0)
