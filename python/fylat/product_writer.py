@@ -22,7 +22,7 @@ def write_cloud_mask(output_path: str, cm_bitarray: np.ndarray, qa_bitarray: np.
 
     with h5py.File(output_path, 'w') as f:
         # Cloud_Mask dataset
-        ds_cm = f.create_dataset('Cloud_Mask', data=cm_bitarray.astype(np.uint8),
+        ds_cm = f.create_dataset('Cloud_Mask', data=cm_bitarray.transpose(1,2,0).astype(np.uint8),
                                  chunks=(100, 100, 6), compression='gzip',
                                  compression_opts=5)
         ds_cm.attrs['units'] = ''
@@ -34,7 +34,7 @@ def write_cloud_mask(output_path: str, cm_bitarray: np.ndarray, qa_bitarray: np.
         ds_cm.attrs['band_name'] = ''
 
         # Quality_Assurance dataset
-        ds_qa = f.create_dataset('Quality_Assurance', data=qa_bitarray.astype(np.uint8),
+        ds_qa = f.create_dataset('Quality_Assurance', data=qa_bitarray.transpose(1,2,0).astype(np.uint8),
                                  chunks=(100, 100, 10), compression='gzip',
                                  compression_opts=5)
         ds_qa.attrs['units'] = ''
