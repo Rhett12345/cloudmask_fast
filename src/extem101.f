@@ -8,11 +8,23 @@ c       slat = latitude (deg,+N,-S)
 c   Output:
 c      tt = same profile with missing levels filled in
 
-        parameter (nx=9,ny=35,nz=3)
-        dimension tt(*),tx(nx),lx(nx),cc(nz,0:nx,ny),plat(nz),cfl(0:nx)
-        common/extcoeff/coef(0:nx,ny,nz)
-        data init/1/,lx/36,40,45,51,56,64,70,76,86/
-        data x1/75./,x2/45./,x3/15./
+        implicit none
+        integer nx, ny, nz
+        parameter (nx=9, ny=35, nz=3)
+c ... arguments
+        real tt(*), slat
+c ... local arrays
+        real tx(nx), cc(nz,0:nx,ny), plat(nz), cfl(0:nx)
+        integer lx(nx)
+c ... common
+        real coef
+        common /extcoeff/ coef(0:nx,ny,nz)
+c ... local scalars
+        integer init, i, j, k, l
+        real x1, x2, x3, y1, y2, y3, c1, c2, c3, alat, xx, cy, sum
+c ... data
+        data init/1/, lx/36,40,45,51,56,64,70,76,86/
+        data x1/75./, x2/45./, x3/15./
 
         save
         
@@ -504,6 +516,10 @@ c *  47.1882 mb:
         subroutine cofit3(xx1,xx2,xx3,yy1,yy2,yy3, c0,c1,c2)
 c * Obtain coefficients for 3-point parabolic fit
 
+        implicit none
+        real x1, x2, x3, y1, y2, y3
+        real x12, x22, x32, t1, t2, t3, det
+        real xx1, xx2, xx3, yy1, yy2, yy3, c0, c1, c2
         x1=xx1
         x2=xx2
         x3=xx3

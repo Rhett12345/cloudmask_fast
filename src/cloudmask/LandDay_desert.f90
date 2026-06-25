@@ -163,7 +163,7 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
       if (nint(masir11) .ne. nint(bad_data) .and.   &
           nint(masir12) .ne. nint(bad_data) .and.   &
           (masir11 < pfmft_11maxthre(1)) .and.   &
-          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then          !jincheng
+          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then
         nmtests = nmtests + 1
         if ((masir11 > 270.0) .and. (btclr(5) > 270.0)) then
             tv11_12 = (masir11 - masir12) -  &
@@ -185,7 +185,7 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
                           pfmft_land(2),1,c1)
         endif
         cmin1 = min(cmin1,c1)
- !       cmin1=1                      !jincheng test
+ !       cmin1=1
         ngtests(1) = ngtests(1) + 1
       endif
       
@@ -204,7 +204,7 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
         call conf_test(tv11_12,nfmft_desert(1),nfmft_desert(3),nfmft_desert(4),   &
                        nfmft_desert(2),1,c2)
         cmin1 = min(cmin1,c2)
- !       cmin1 =1.                         !jincheng test
+ !       cmin1 =1.
         ngtests(1) = ngtests(1) + 1
       endif
        
@@ -300,7 +300,7 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
         cmin2 = min(cmin2,c3)
 !        cmin2 = 1.0 ! added by minmin 
 !        print*,'----------------------'
-!        print*,'c3',c3,'cmin2',cmin2       !jincheng
+!        print*,'c3',c3,'cmin2',cmin2
         ngtests(2) = ngtests(2) + 1
       endif
 
@@ -320,7 +320,7 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
             nmtests = nmtests + 1
             mas11_4 = masir11 - masir4
 !           print*,'----------------------'
-!           print*,'mas11_4',mas11_4,'lds11_4lo',lds11_4lo,'lds11_4hi',lds11_4hi  !jincheng
+!           print*,'mas11_4',mas11_4,'lds11_4lo',lds11_4lo,'lds11_4hi',lds11_4hi
             call set_qa_bit(qa_bits,19)
               
             if (mas11_4.ge.lds11_4lo(2) .and. mas11_4.le.lds11_4hi(2))then
@@ -337,7 +337,7 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
             call conf_test_2val(mas11_4,locuta,hicuta,1.0,midpta,2,c4)
             !cmin2 = min(cmin2,c4)
             !ngtests(2) = ngtests(2) + 1
-!            print*,'c4',c4,'cmin2',cmin2      !jincheng
+!            print*,'c4',c4,'cmin2',cmin2
           endif
         end if
 
@@ -428,7 +428,7 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
 !     Determine final confidence based on group values
       pre_confdnc = cmin1 * cmin2 * cmin3 * cmin4
   !     print*,'LandDay_desert============================'      
-  !     print*,'cmin1=',cmin1                           !jincheng
+  !     print*,'cmin1=',cmin1
   !     print*,'cmin2=',cmin2
   !     print*,'cmin3=',cmin3
   !     print*,'cmin4=',cmin4
@@ -451,7 +451,7 @@ subroutine LandDay_desert(pxldat,vza,visusd,cirrus_vis,   &
 !     +         c7,cmin1,cmin2,cmin3,cmin4,fac,confdnc
 !      endif
 ! ................................................................
-      !jincheng test
+
 !      write(1,*) 'cmin1=',cmin1,'cmin2=',cmin2,'cmin3=',cmin3,'cmin4=',cmin4
 !      write(1,*) 'confdn',confdnc,'pre_conf',pre_confdnc,'fac',fac
 !      print*, 'confdn',confdnc,'pre_conf',pre_confdnc,'fac',fac

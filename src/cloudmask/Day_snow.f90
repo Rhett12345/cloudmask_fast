@@ -140,7 +140,7 @@ subroutine Day_snow(pxldat,vza,visusd,cirrus_vis,hi_elev,   &
           nint(masir12) .ne. nint(bad_data) .and.   &
           (masir11 < pfmft_11maxthre(1)) .and.   &
 !          (masir11-masir12) < pfmft_btd_min(1) ) then
-          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then          !jincheng
+          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then
         nmtests = nmtests + 1
         if ((masir11 > 270.0) .and. (btclr(5) > 270.0)) then
             tv11_12 = (masir11 - masir12) -  &
@@ -175,7 +175,7 @@ subroutine Day_snow(pxldat,vza,visusd,cirrus_vis,hi_elev,   &
         !end if
 !        call conf_test(tv11_12,nfmft_land(1),nfmft_land(3),nfmft_land(4),   &
 !                       nfmft_land(2),1,c2)
-         call conf_test(tv11_12,nfmft_snow(1),nfmft_snow(3),nfmft_snow(4),   &        ! jincheng
+         call conf_test(tv11_12,nfmft_snow(1),nfmft_snow(3),nfmft_snow(4),   &
                        nfmft_snow(2),1,c2)
         cmin1 = min(cmin1,c2)
        ! cmin1 = 1  ! added by minmin

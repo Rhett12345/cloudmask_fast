@@ -29,20 +29,20 @@ logical :: line_edge,ele_edge,polar,land,day,night,ice,snglnt,visusd,water,bad_v
 integer         :: lsf, nmtests, nbands, nbad_1km, nbad_250
 real(kind=4)    :: confdnc,precip_water,vza,plat,plon,sfctmp,pmsl,u_wind,v_wind,refang
 
-real(kind=4), dimension(:,:), pointer :: out_pwater             !lyj
-real(kind=4), dimension(:,:), pointer :: out_sfctmp             !lyj
-integer, dimension(:,:), pointer :: out_polar                   !lyj
-integer, dimension(:,:), pointer :: out_day                     !lyj
-integer, dimension(:,:), pointer :: out_night                   !lyj
-integer, dimension(:,:), pointer :: out_land                    !lyj
-integer, dimension(:,:), pointer :: out_water                   !lyj
-integer, dimension(:,:), pointer :: out_coast                   !lyj
-integer, dimension(:,:), pointer :: out_snglnt                  !lyj
-integer, dimension(:,:), pointer :: out_snow                    !lyj
-integer, dimension(:,:), pointer :: out_ice                     !lyj
-integer, dimension(:,:), pointer :: out_desert                  !lyj
-integer, dimension(:,:), pointer :: out_uniform                 !lyj
-integer, dimension(:,:), pointer :: out_shadow                  !lyj
+real(kind=4), dimension(:,:), pointer :: out_pwater
+real(kind=4), dimension(:,:), pointer :: out_sfctmp
+integer, dimension(:,:), pointer :: out_polar
+integer, dimension(:,:), pointer :: out_day
+integer, dimension(:,:), pointer :: out_night
+integer, dimension(:,:), pointer :: out_land
+integer, dimension(:,:), pointer :: out_water
+integer, dimension(:,:), pointer :: out_coast
+integer, dimension(:,:), pointer :: out_snglnt
+integer, dimension(:,:), pointer :: out_snow
+integer, dimension(:,:), pointer :: out_ice
+integer, dimension(:,:), pointer :: out_desert
+integer, dimension(:,:), pointer :: out_uniform
+integer, dimension(:,:), pointer :: out_shadow
 
 byte testbits(6), qa_bits(10)
 

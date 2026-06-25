@@ -25,7 +25,7 @@ C
 C !END
 C--------------------------------------------------------------------
 
-!      IMPLICIT NONE
+      IMPLICIT NONE
 
 c ... Arguments
 

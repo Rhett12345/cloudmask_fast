@@ -181,7 +181,7 @@ subroutine LandDay(pxldat,vza,visusd,vrused,cirrus_vis,   &
       if (nint(masir11) .ne. nint(bad_data) .and.   &
           nint(masir12) .ne. nint(bad_data) .and.   &
           (masir11 < pfmft_11maxthre(1)) .and.   &
-          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then          !jincheng
+          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then
         nmtests = nmtests + 1
         if ((masir11 > 270.0) .and. (btclr(5) > 270.0)) then
             tv11_12 = (masir11 - masir12) -  &
@@ -466,7 +466,7 @@ subroutine LandDay(pxldat,vza,visusd,vrused,cirrus_vis,   &
       confdnc = pre_confdnc**fac
 
 !       print*,'LandDay============================'      
-!       print*,'cmin1=',cmin1                           !jincheng
+!       print*,'cmin1=',cmin1
 !       print*,'cmin2=',cmin2
 !       print*,'cmin3=',cmin3
 !       print*,'cmin4=',cmin4

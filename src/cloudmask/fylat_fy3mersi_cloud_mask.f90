@@ -82,46 +82,46 @@ call thresholds_read( fylat_sensor_id )
 cm => cm_bitarray
 qa => cm_qa_bitarray
 
-allocate ( out_pwater (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_sfctmp (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_polar  (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_day    (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_night  (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_land   (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_water  (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_coast  (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_snglnt (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_snow   (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_ice    (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_desert (sat%nElem,sat%nLine) )            !lyj
-allocate ( out_uniform(sat%nElem,sat%nLine) )            !lyj
-allocate ( out_shadow (sat%nElem,sat%nLine) )            !lyj
+allocate ( out_pwater (sat%nElem,sat%nLine) )
+allocate ( out_sfctmp (sat%nElem,sat%nLine) )
+allocate ( out_polar  (sat%nElem,sat%nLine) )
+allocate ( out_day    (sat%nElem,sat%nLine) )
+allocate ( out_night  (sat%nElem,sat%nLine) )
+allocate ( out_land   (sat%nElem,sat%nLine) )
+allocate ( out_water  (sat%nElem,sat%nLine) )
+allocate ( out_coast  (sat%nElem,sat%nLine) )
+allocate ( out_snglnt (sat%nElem,sat%nLine) )
+allocate ( out_snow   (sat%nElem,sat%nLine) )
+allocate ( out_ice    (sat%nElem,sat%nLine) )
+allocate ( out_desert (sat%nElem,sat%nLine) )
+allocate ( out_uniform(sat%nElem,sat%nLine) )
+allocate ( out_shadow (sat%nElem,sat%nLine) )
 
-out_pwater  = -999.0        !lyj
-out_sfctmp  = -999.0        !lyj
-out_polar   = -9            !lyj
-out_day     = -9            !lyj
-out_night   = -9            !lyj
-out_land    = -9            !lyj
-out_water   = -9            !lyj
-out_coast   = -9            !lyj
-out_snglnt  = -9            !lyj
-out_snow    = -9            !lyj
-out_ice     = -9            !lyj
-out_desert  = -9            !lyj
-out_uniform = -9            !lyj
-out_shadow  = -9            !lyj
+out_pwater  = -999.0
+out_sfctmp  = -999.0
+out_polar   = -9
+out_day     = -9
+out_night   = -9
+out_land    = -9
+out_water   = -9
+out_coast   = -9
+out_snglnt  = -9
+out_snow    = -9
+out_ice     = -9
+out_desert  = -9
+out_uniform = -9
+out_shadow  = -9
 
 !======================================================================
 ! Loop over pixels in this segment
 !======================================================================
-!     open(1,file='test.txt')        !jincheng
+!     open(1,file='test.txt')
 line_loop_1: do iline= 1, sat%nLine
-!line_loop_1: do iline= 200, 700                  !jincheng test
+!line_loop_1: do iline= 200, 700
 element_loop_1: do ielem= 1, sat%nElem
-!element_loop_1: do ielem= 900, 1300               !jincheng test
-!print*,'ij',iline,ielem         !jincheng
-!open(1,file='test.txt')         !jincheng
+!element_loop_1: do ielem= 900, 1300
+!print*,'ij',iline,ielem
+!open(1,file='test.txt')
 !--- Initialize regional variables
     call pxinit(testbits,qa_bits,precip_water,vza,                 &
                 sfctmp,pmsl,u_wind,v_wind,plat,plon,lsf,polar,     &
@@ -220,7 +220,7 @@ endif
     if(process) then
     !print*,'g',ielem,iline,polar,land,water,day
 
-!    if (plat > 23 .and. plat < 25 .and. plon > 13 .and. plon < 15)  then !jincheng test
+!    if (plat > 23 .and. plat < 25 .and. plon > 13 .and. plon < 15)  then
    
 !    Decision tree for processing paths 
       if (polar) then
@@ -346,36 +346,36 @@ endif
     
 
             
-!    end if ! jincheng test
+!    end if
     end if !if(process) then
 
-    out_pwater(ielem,iline) = precip_water                       !lyj
-    out_sfctmp(ielem,iline) = sfctmp                             !lyj
+    out_pwater(ielem,iline) = precip_water
+    out_sfctmp(ielem,iline) = sfctmp
 
-    if ( polar   )  out_polar   (ielem,iline)  = 1               !lyj
-    if ( day     )  out_day     (ielem,iline)  = 1               !lyj
-    if ( night   )  out_night   (ielem,iline)  = 1               !lyj
-    if ( land    )  out_land    (ielem,iline)  = 1               !lyj
-    if ( water   )  out_water   (ielem,iline)  = 1               !lyj
-    if ( coast   )  out_coast   (ielem,iline)  = 1               !lyj
-    if ( snglnt  )  out_snglnt  (ielem,iline)  = 1               !lyj
-    if ( snow    )  out_snow    (ielem,iline)  = 1               !lyj
-    if ( ice     )  out_ice     (ielem,iline)  = 1               !lyj
-    if ( desert  )  out_desert  (ielem,iline)  = 1               !lyj
-    if ( uniform )  out_uniform (ielem,iline)  = 1               !lyj
-    if ( shadow  )  out_shadow  (ielem,iline)  = 1               !lyj
-    if ( .not.  polar   )  out_polar   (ielem,iline) = 0         !lyj
-    if ( .not.  day     )  out_day     (ielem,iline) = 0         !lyj
-    if ( .not.  night   )  out_night   (ielem,iline) = 0         !lyj
-    if ( .not.  land    )  out_land    (ielem,iline) = 0         !lyj
-    if ( .not.  water   )  out_water   (ielem,iline) = 0         !lyj
-    if ( .not.  coast   )  out_coast   (ielem,iline) = 0         !lyj
-    if ( .not.  snglnt  )  out_snglnt  (ielem,iline) = 0         !lyj
-    if ( .not.  snow    )  out_snow    (ielem,iline) = 0         !lyj
-    if ( .not.  ice     )  out_ice     (ielem,iline) = 0         !lyj
-    if ( .not.  desert  )  out_desert  (ielem,iline) = 0         !lyj
-    if ( .not.  uniform )  out_uniform (ielem,iline) = 0         !lyj
-    if ( .not.  shadow  )  out_shadow  (ielem,iline) = 0         !lyj
+    if ( polar   )  out_polar   (ielem,iline)  = 1
+    if ( day     )  out_day     (ielem,iline)  = 1
+    if ( night   )  out_night   (ielem,iline)  = 1
+    if ( land    )  out_land    (ielem,iline)  = 1
+    if ( water   )  out_water   (ielem,iline)  = 1
+    if ( coast   )  out_coast   (ielem,iline)  = 1
+    if ( snglnt  )  out_snglnt  (ielem,iline)  = 1
+    if ( snow    )  out_snow    (ielem,iline)  = 1
+    if ( ice     )  out_ice     (ielem,iline)  = 1
+    if ( desert  )  out_desert  (ielem,iline)  = 1
+    if ( uniform )  out_uniform (ielem,iline)  = 1
+    if ( shadow  )  out_shadow  (ielem,iline)  = 1
+    if ( .not.  polar   )  out_polar   (ielem,iline) = 0
+    if ( .not.  day     )  out_day     (ielem,iline) = 0
+    if ( .not.  night   )  out_night   (ielem,iline) = 0
+    if ( .not.  land    )  out_land    (ielem,iline) = 0
+    if ( .not.  water   )  out_water   (ielem,iline) = 0
+    if ( .not.  coast   )  out_coast   (ielem,iline) = 0
+    if ( .not.  snglnt  )  out_snglnt  (ielem,iline) = 0
+    if ( .not.  snow    )  out_snow    (ielem,iline) = 0
+    if ( .not.  ice     )  out_ice     (ielem,iline) = 0
+    if ( .not.  desert  )  out_desert  (ielem,iline) = 0
+    if ( .not.  uniform )  out_uniform (ielem,iline) = 0
+    if ( .not.  shadow  )  out_shadow  (ielem,iline) = 0
     
 !-----------------------------------------------------------------------
 ! END loop over pixels in segment
@@ -383,7 +383,7 @@ endif
 end do element_loop_1
     
 end do line_loop_1
-!close(1)             !jincheng
+!close(1)
 cm => null()
 qa => null()
    

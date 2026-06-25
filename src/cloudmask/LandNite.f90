@@ -169,7 +169,7 @@
           nint(masir12) .ne. nint(bad_data) .and.   &
           (masir11 < pfmft_11maxthre(1)) .and.   &
 
-          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then          !jincheng
+          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then
   		  nmtests = nmtests + 1
         if ((masir11 > 270.0) .and. (btclr(5) > 270.0)) then
             tv11_12 = (masir11 - masir12) -  &

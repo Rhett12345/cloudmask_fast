@@ -7,12 +7,12 @@ use planck_module
 use constant
 use platform_module
 use HDF5
-use io_module                   !lyj
-use get_ancil_data_module       !lyj
+use io_module
+use get_ancil_data_module
 
 !---------------------------------------------
-!use cloudmask_data_arrays       !lyj
-use fylat_fy3mersi_cloud_mask   !lyj
+!use cloudmask_data_arrays
+use fylat_fy3mersi_cloud_mask
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -369,7 +369,7 @@ call h5fclose_f(file_id, error)
 
 call h5close_f(error)
 
-!deallocate (ptv11_12,  &                   !jincheng
+!deallocate (ptv11_12,  &
 !            ntv11_12)
 			
 end subroutine fylat_write_out_intermediate

@@ -17,8 +17,9 @@
 ###########################################################################
 
 #-------------------------
-# PATH
-root_path = /home/liusy2020/yuq/cloudmask/retrieval_system_V3.1_cldmask/src/
+# PATH (override via: FYLAT_ROOT_PATH=/your/path)
+FYLAT_ROOT_PATH ?= /home/liusy2020/yuq/cloudmask/retrieval_system_V3.1_cldmask/src/
+root_path = $(FYLAT_ROOT_PATH)
 cloudmask_path = $(root_path)cloudmask/
 cloudamount_path = $(root_path)cloudamount/
 cloudphase_path = $(root_path)cloudphase/
@@ -32,7 +33,8 @@ F77 = ifort
 F90 = ifort  
 FFLAGS = -c -O3
 #FFLAGS = -c -g -O0 -traceback -check all
-hdf5= /opt/intel_lib/bin/h5fc
+HDF5_ROOT ?= /opt/intel_lib
+hdf5 = $(HDF5_ROOT)/bin/h5fc
 CC = icc
 
 #-------------------------
@@ -132,8 +134,8 @@ OBJ =	$(FOBJ) \
 # h4fc/h5fc -show
 #HDF4MYLIB = -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -lmfhdf -ldf -lsz -ljpeg -lz
 #HDF5MYLIB = -I/state/partition1/apps/LIB/include -L/state/partition1/apps/LIB/lib /state/partition1/apps/LIB/lib/libhdf5hl_fortran.a /state/partition1/apps/LIB/lib/libhdf5_hl.a /state/partition1/apps/LIB/lib/libhdf5_fortran.a /state/partition1/apps/LIB/lib/libhdf5.a -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -lsz -lz -lrt -lm -Wl,-rpath -Wl,/state/partition1/apps/LIB/lib
-HDF4MYLIB = -L/opt/intel_lib/lib -L/opt/intel_lib/lib -L/opt/intel_lib/lib -L/opt/intel_lib/lib -lmfhdf -ldf -lsz -ljpeg -lz -ltirpc
-HDF5MYLIB = -I/opt/intel_lib/include -L/opt/intel_lib/lib /opt/intel_lib/lib/libhdf5hl_fortran.a /opt/intel_lib/lib/libhdf5_hl.a /opt/intel_lib/lib/libhdf5_fortran.a /opt/intel_lib/lib/libhdf5.a -L/opt/intel_lib/lib -L/opt/intel_lib/lib -lsz -lz -ldl -lm -Wl,-rpath -Wl,/opt/intel_lib/lib 
+HDF4MYLIB = -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -lmfhdf -ldf -lsz -ljpeg -lz -ltirpc
+HDF5MYLIB = -I$(HDF5_ROOT)/include -L$(HDF5_ROOT)/lib $(HDF5_ROOT)/lib/libhdf5hl_fortran.a $(HDF5_ROOT)/lib/libhdf5_hl.a $(HDF5_ROOT)/lib/libhdf5_fortran.a $(HDF5_ROOT)/lib/libhdf5.a -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -lsz -lz -ldl -lm -Wl,-rpath -Wl,$(HDF5_ROOT)/lib
 #-------------------------
 # Include files 
 INC_FILES_SCIENCE = \
@@ -266,7 +268,7 @@ get_ancil_data_module.o: get_ancil_data_module.f90
 rtm_utils_module.o: rtm_utils_module.f90
 	$(hdf5) $(FFLAGS) rtm_utils_module.f90
 	
-#lyj
+
 io_module_intermediate.o: io_module_intermediate.f90
 	$(hdf5) $(FFLAGS) io_module_intermediate.f90
 

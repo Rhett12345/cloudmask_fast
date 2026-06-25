@@ -153,7 +153,7 @@
           nint(masir12) .ne. nint(bad_data) .and.   &
           (masir11 < pfmft_11maxthre(1)) .and.   &
 !          (masir11-masir12) < pfmft_btd_min(1) ) then
-          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then          !jincheng
+          (btclr(5)-btclr(6)) > pfmft_btd_min(1) ) then
 		  nmtests = nmtests + 1
         if ((masir11 > 270.0) .and. (btclr(5) > 270.0)) then
             tv11_12 = (masir11 - masir12) -  &
@@ -169,7 +169,7 @@
         !end if
 !        call conf_test(tv11_12,pfmft_ocean(1),pfmft_ocean(3),pfmft_ocean(4),   &
 !                       pfmft_ocean(2),1,c1)
-        call conf_test(tv11_12,pfmft_snow(1),pfmft_snow(3),pfmft_snow(4),   &              !jincheng
+        call conf_test(tv11_12,pfmft_snow(1),pfmft_snow(3),pfmft_snow(4),   &
                        pfmft_snow(2),1,c1)
  !       cmin1 = min(cmin1,c1)
  !       ngtests(1) = ngtests(1) + 1
@@ -189,7 +189,7 @@
         !end if
 !        call conf_test(tv11_12,nfmft_ocean(1),nfmft_ocean(3),nfmft_ocean(4),   &
 !                       nfmft_ocean(2),1,c2)
-        call conf_test(tv11_12,nfmft_snow(1),nfmft_snow(3),nfmft_snow(4),   &            !jincheng
+        call conf_test(tv11_12,nfmft_snow(1),nfmft_snow(3),nfmft_snow(4),   &
                        nfmft_snow(2),1,c2)
  !       cmin1 = min(cmin1,c2)
  !       ngtests(1) = ngtests(1) + 1

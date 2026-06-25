@@ -156,11 +156,11 @@
               m5_4_thr = ldr5_4_thr(1)
             end if
 
-            m5_4 = m5 / m4                   ! jincheng
+            m5_4 = m5 / m4
             md1 = m20 - m22
             md2 = m22 - m31
 
-!            if (md1 .lt. ld20m22(1) .and. md2 .lt. ld22m31(1) .and.   &            !jincheng
+!            if (md1 .lt. ld20m22(1) .and. md2 .lt. ld22m31(1) .and.   &
 !                m5_4 .gt. m5_4_thr ) then
             if (  md2 .lt. ld22m31(1) .and.   &
                 m5_4 .gt. m5_4_thr ) then

@@ -19,7 +19,7 @@ use constant
 use data_arrays_module
 use get_ancil_data_module
 use io_module 
-use io_module_intermediate               !lyj 
+use io_module_intermediate
 use read_nwp_data_module
 use nwp_utils_module
 use frontend_module
@@ -56,7 +56,7 @@ namelist /config/ fy3_mersi_L1b_data,   &
                   fy3_mersi_COT_data,   &
                   fy3_mersi_CON_data,   &
                   fy3_mersi_SST_data,   &
-                  fy3_intermediate,     &       !lyj
+                  fy3_intermediate,     &
                   code_root_path,       &
                   L1b_data_path,        &
                   nwp_data_path,        &
@@ -468,9 +468,9 @@ endif
 !write_id = 0 
 if (write_id == 1) then
 
-    print*, "    ******PRINT INTERMEDIATE ARRAYS START******"        !lyj
-    call fylat_write_out_intermediate()                              !lyj
-    print*, "    ******PRINT INTERMEDIATE ARRAYS OVER*******"        !lyj
+    print*, "    ******PRINT INTERMEDIATE ARRAYS START******"
+    call fylat_write_out_intermediate()
+    print*, "    ******PRINT INTERMEDIATE ARRAYS OVER*******"
     
 endif
 
