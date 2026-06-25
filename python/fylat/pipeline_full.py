@@ -85,8 +85,8 @@ def classify_surface_full(data: dict, il: int, ie: int) -> dict:
     is_water = (eco == 0 or eco == 17)
     is_land = (1 <= eco <= 16)
     is_coast = False
-    is_snow = (sm == 1)
-    is_ice = (sm == 2)
+    is_snow = (sm >= 50)   # NISE concentration >50%
+    is_ice = (sm >= 50)
     is_desert = (eco == 16)
     is_polar = abs(lat) > 60.0
 
@@ -229,6 +229,63 @@ def land_day_full(px, vza, visusd, vrused, hi_elev, tb, qa, thr, pf, btclr):
     return nm, prod**(1.0/g) if g>0 else 0.0, g
 
 
+def day_snow_full(px, vza, visusd, hi_elev, tb, qa, thr, pf, btclr):
+    m31,m32,m20=px[B11],px[B12],px[B38]; b5=px[B138]; tv=m31-m32; ng1=ng2=0; cmin1=cmin2=1.0; nm=0
+    if m31>0 and m32>0 and m31<_get_thr('pfmft_11maxthre',pf)[0] and (btclr[5]-btclr[6])>_get_thr('pfmft_btd_min',pf)[0]: fylat_core.set_bit(tb,14); fylat_core.set_qa_bit(qa,14); ng1+=1
+    if m31>0 and m32>0 and tv<=_get_thr('nfmft_maxthre',pf)[0]: fylat_core.set_bit(tb,15); fylat_core.set_qa_bit(qa,15); ng1+=1
+    nm+=ng1
+    if m31>0 and m32>0 and vza>0:
+        cv=math.cos(math.radians(vza))
+        if abs(cv)>1e-6:
+            dtv=fylat_core.tview(1,1.0/cv,m31)
+            if dtv>=0.1:
+                df=dtv+_get_thr('ds11_12adj',thr)[0]
+                if tv<=df: fylat_core.set_bit(tb,18); fylat_core.set_qa_bit(qa,18)
+                else: fylat_core.clear_bit(tb,18)
+            ng2+=1
+    d4=_get_thr('ds4_11',thr); d4h=_get_thr('ds4_11hel',thr)
+    thr_4_11 = d4h if hi_elev else d4
+    if m31>0 and m20>0 and m20-m31<=thr_4_11[1]: fylat_core.set_bit(tb,19); fylat_core.set_qa_bit(qa,19); ng2+=1
+    nm+=ng2
+    cmin4=1.0; dr3=_get_thr('dsref3',thr)
+    if not hi_elev and visusd and b5>0 and b5<=dr3[1]: fylat_core.set_bit(tb,16); fylat_core.set_qa_bit(qa,16); cmin4*=fylat_core.conf_test(b5,dr3[0],dr3[2],dr3[3],dr3[1],1)
+    dc=_get_thr('dstci',thr)
+    if not hi_elev and visusd and b5>0 and b5>=dc[1] and b5<dc[0]: fylat_core.clear_bit(tb,9)
+    g,prod=0,1.0
+    if ng1>0: g+=1;prod*=cmin1
+    if ng2>0: g+=1;prod*=cmin2
+    if cmin4<1.0: g+=1;prod*=cmin4
+    return nm, prod**(1.0/g) if g>0 else 0.0, g
+
+
+def nite_snow_full(px, vza, lnd, tb, qa, thr, pf, btclr):
+    m31,m32,m20=px[B11],px[B12],px[B38]; m27=px[B20]; tv=m31-m32; ng1=ng2=0; cmin2=1.0; nm=0
+    if m31>0 and m32>0 and m31<_get_thr('pfmft_11maxthre',pf)[0] and (btclr[5]-btclr[6])>_get_thr('pfmft_btd_min',pf)[0]: fylat_core.set_bit(tb,14); fylat_core.set_qa_bit(qa,14); ng1+=1
+    if m31>0 and m32>0 and tv<=_get_thr('nfmft_maxthre',pf)[0]: fylat_core.set_bit(tb,15); fylat_core.set_qa_bit(qa,15); ng1+=1
+    nm+=ng1
+    if m31>0 and m32>0 and vza>0:
+        cv=math.cos(math.radians(vza))
+        if abs(cv)>1e-6:
+            dtv=fylat_core.tview(1,1.0/cv,m31)
+            if dtv>=0.1:
+                df=dtv+_get_thr('ns11_12adj',thr)[0]
+                if tv<=df: fylat_core.set_bit(tb,18); fylat_core.set_qa_bit(qa,18)
+                else: fylat_core.clear_bit(tb,18)
+            ng2+=1
+    n4=_get_thr('ns11_4lo',thr)
+    if m31>0 and m20>0 and m31-m20<=n4[1]: fylat_core.set_bit(tb,19); fylat_core.set_qa_bit(qa,19); ng2+=1
+    if m27>0 and m31>0 and m27-m31<=-2.0: fylat_core.set_bit(tb,23); fylat_core.set_qa_bit(qa,23); ng2+=1
+    nm+=ng2
+    cmin5=1.0; ng5=0
+    n5=_get_thr('ns4_12hi',thr)
+    if m20>0 and m32>0 and m20-m32<=n5[1]: fylat_core.set_bit(tb,17); fylat_core.set_qa_bit(qa,17); cmin5*=fylat_core.conf_test(m20-m32,n5[0],n5[2],n5[3],n5[1],1); ng5+=1
+    nm+=ng5
+    g,prod=0,1.0
+    if ng2>0: g+=1;prod*=cmin2
+    if ng5>0: g+=1;prod*=cmin5
+    return nm, prod**(1.0/g) if g>0 else 0.0, g
+
+
 def process_pixel_full(px, data, il, ie, thresholds):
     sfc = classify_surface_full(data, il, ie)
     tb = np.zeros(6, dtype=np.uint8)
@@ -259,6 +316,16 @@ def process_pixel_full(px, data, il, ie, thresholds):
     scene = 'skip'
     if sfc['polar'] or px[B11] <= 0:
         pass
+    elif sfc['day'] and (sfc['snow'] or sfc['ice']):
+        thr_s = thresholds.get('day_snow', {})
+        pf = thresholds.get('pfmft', {})
+        nmt2, conf, _ = day_snow_full(px, vza, True, False, tb, qa, thr_s, pf, btclr)
+        nmt += nmt2; scene = 'day_snow_full'
+    elif not sfc['day'] and (sfc['snow'] or sfc['ice']):
+        thr_s = thresholds.get('nite_snow', {})
+        pf = thresholds.get('pfmft', {})
+        nmt2, conf, _ = nite_snow_full(px, vza, sfc['land'], tb, qa, thr_s, pf, btclr)
+        nmt += nmt2; scene = 'nite_snow_full'
     elif sfc['day'] and sfc['water']:
         thr_o = thresholds.get('ocean_day', {})
         pf = thresholds.get('pfmft', {})
@@ -271,7 +338,7 @@ def process_pixel_full(px, data, il, ie, thresholds):
         nmt2, conf, _ = ocean_nite_full(px, vza, sfctmp, False, True,
                                         tb, qa, thr_o, pf, btclr)
         nmt += nmt2; scene = 'ocean_nite_full'
-    elif sfc['day'] and sfc['land'] and not sfc['desert']:
+    elif sfc['day'] and sfc['land']:
         thr_l = thresholds.get('land_day', {})
         pf = thresholds.get('pfmft', {})
         nmt2, conf, _ = land_day_full(px, vza, True, True, False,
@@ -307,7 +374,7 @@ def run_full(l1b, geo, intermed, output=None, n_pixels=None):
     print(f"Orbit: {nL}x{nE} = {nL*nE/1e6:.1f}M px, load={time.perf_counter()-t0:.1f}s")
 
     thresholds = {}
-    for s in ['ocean_day', 'ocean_nite', 'land_day', 'land_nite']:
+    for s in ['ocean_day', 'ocean_nite', 'land_day', 'land_nite', 'day_snow', 'nite_snow']:
         thresholds[s] = get_scene_thresholds(s)
     thresholds['pfmft'] = thresholds['ocean_day']
 
