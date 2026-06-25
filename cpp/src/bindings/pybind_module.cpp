@@ -5,6 +5,7 @@
 #include "fylat/cloudmask_spatial.hpp"
 #include "fylat/constants.hpp"
 #include "fylat/global_params.hpp"
+#include "fylat/numerical.hpp"
 
 namespace py = pybind11;
 
@@ -170,4 +171,17 @@ PYBIND11_MODULE(fylat_core, m) {
           py::arg("shadnir0"), py::arg("shadnir1"), py::arg("shavrat0"),
           py::arg("qa_bits"),
           "Cloud shadow detection");
+
+    // -- Numerical / geometry functions --
+    m.def("compute_earth2sun", &fylat::compute_earth2sun, py::arg("julday"),
+          "Earth-Sun distance in AU for given day of year");
+    m.def("leap_year", &fylat::leap_year, py::arg("year"),
+          "Check if year is a leap year (returns 0 or 1)");
+    m.def("compute_daynum", &fylat::compute_daynum,
+          py::arg("month"), py::arg("day"), py::arg("ileap"),
+          "Compute day number within a year");
+    m.def("julian", &fylat::julian,
+          py::arg("year"), py::arg("month"), py::arg("day"),
+          py::arg("hour"), py::arg("minute"),
+          "Compute Julian day from date components");
 }

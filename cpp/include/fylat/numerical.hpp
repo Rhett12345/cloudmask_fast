@@ -3,12 +3,9 @@
 // and frontend_module.f90
 #include <cmath>
 #include <cstdint>
+#include "fylat/constants.hpp"
 
 namespace fylat {
-
-constexpr double PI = 3.141592653589793238462643;
-constexpr double DTOR = PI / 180.0;
-constexpr double RTOD = 180.0 / PI;
 
 // =========================================================================
 // Date/time utilities
