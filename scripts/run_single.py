@@ -90,7 +90,8 @@ def main():
         print("\nDry run complete. .nml NOT written to disk.")
         return 0
 
-    ret = run_scene(scene_path, base_yaml_path=args.base_config)
+    ret = run_scene(scene_path, base_yaml_path=args.base_config,
+                    calibration=args.calibration)
     if ret == 0:
         print("FYLAT completed successfully.")
     else:

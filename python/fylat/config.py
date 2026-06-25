@@ -251,12 +251,15 @@ def setup_calibration(cfg: Dict[str, Any], code_root: str) -> None:
 # ---------------------------------------------------------------------------
 # Convenience: run a single scene
 # ---------------------------------------------------------------------------
-def run_scene(scene_yaml_path: str, base_yaml_path: Optional[str] = None) -> int:
+def run_scene(scene_yaml_path: str, base_yaml_path: Optional[str] = None,
+              calibration: Optional[str] = None) -> int:
     """Full workflow for a single scene: load config → write .nml → run Fortran.
 
     Returns the exit code of the Fortran executable.
     """
     cfg = load_config(scene_path=scene_yaml_path, base_path=base_yaml_path)
+    if calibration:
+        cfg.setdefault("scene", {})["calibration"] = calibration
     code_root = cfg.get("paths", {}).get("code_root", DEFAULT_CODE_ROOT)
 
     # Setup calibration
