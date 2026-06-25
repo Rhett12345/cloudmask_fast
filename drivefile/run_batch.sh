@@ -1,3 +1,0 @@
-./fylat_FY3_MERSI_II_PGS fylat_config_20050703_0605_land_ocean.nml
-./fylat_FY3_MERSI_II_PGS fylat_config_20050703_0610_land.nml
-./fylat_FY3_MERSI_II_PGS fylat_config_20050703_0615_land_desert.nml
