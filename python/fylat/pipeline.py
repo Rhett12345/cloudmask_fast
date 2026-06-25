@@ -17,6 +17,7 @@ if str(_CPP_BUILD) not in sys.path:
 import fylat_core
 
 from fylat.thresholds import get_scene_thresholds
+from fylat.planck import rad2bt_array
 
 # Planck constants (W·m²)
 C1 = 1.191042722e-16
@@ -109,18 +110,29 @@ def build_pxldat(data: dict, il: int, ie: int) -> np.ndarray:
     px = np.zeros(25, dtype=np.float32)
     # Bands 1-4: 250m aggregated reflective (reflectance 0-1)
     px[0:4] = data['ev_250'][0:4, il, ie] * 0.0001
-    # Bands 5-19: 1km reflective
+    # Bands 5-19: 1km reflective (15 bands)
     px[4:19] = data['ev_ref'][0:15, il, ie] * 0.0001
-    # IR bands (already in radiance — need Planck conversion)
-    # For simplicity, use the slope-scaled radiance values
-    # The Fortran code does full Planck conversion; for testing we use approximate BT
-    px[19] = data['bt_38'][il, ie]  # 3.8um radiance (mW scale)
-    px[20] = data['bt_73'][il, ie]  # 7.2um
-    px[21] = data['bt_108'][il, ie]  # 10.8um
-    px[22] = data['bt_12'][il, ie]  # 12.0um
-    # IR bands 24-25 from 250m aggregated
-    px[23] = data['ev_250_ir'][0, il, ie] * 0.01  # 11um equivalent
-    px[24] = data['ev_250_ir'][1, il, ie] * 0.01  # 12um equivalent
+    # IR bands: convert radiance (mW/cm-1) → W/um → BT(K)
+    slopes = data['ir_slopes']
+    # Ch0→band20(3.8um), Ch1→band21(7.2um), Ch2→band22(10.8um), Ch3→band23(12um)
+    ir_data = data['bt_38']  # just get shape — all IR arrays share shape
+    for ch, band in enumerate([20, 21, 22, 23]):
+        raw = data[['bt_38','bt_73','bt_108','bt_12'][ch]][il, ie]
+        px[19 + ch] = raw  # already in W/m2/sr/um (slope applied)
+    # IR 24-25 from 250m aggregated emissive
+    px[23] = data['ev_250_ir'][0, il, ie] * 0.01  # 11um proxy (W/m2/sr/um)
+    px[24] = data['ev_250_ir'][1, il, ie] * 0.01  # 12um proxy
+    # Convert radiance to BT (use band 24/25 coefficients)
+    for bi in [19, 20, 21, 22]:
+        band = 20 + (bi - 19)
+        if px[bi] > 0:
+            bt = rad2bt_array(np.array([px[bi]]), band)[0]
+            px[bi] = bt
+    for bi in [23, 24]:
+        band = 24 + (bi - 23)
+        if px[bi] > 0:
+            bt = rad2bt_array(np.array([px[bi]]), band)[0]
+            px[bi] = bt
     return px
 
 
