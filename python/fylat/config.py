@@ -217,35 +217,19 @@ def write_namelist(cfg: Dict[str, Any], output_path: str) -> str:
 def setup_calibration(cfg: Dict[str, Any], code_root: str) -> None:
     """Configure calibration mode for the Fortran runtime.
 
-    The Fortran io_module checks two things at runtime:
-      1. cal_mode.txt in code_root — contains "recali" to enable external cal
-      2. VIS_Cal_Coeff.xcfg in CWD — the external coefficient file
-
-    This function writes cal_mode.txt and copies the appropriate .xcfg file.
+    Uses Python calibration module — no more manual .xcfg file management.
+    The calibration field in YAML can be:
+      - "business": use HDF5 built-in coefficients
+      - "recali": use default external recalibration
+      - "YYYYMMDD": use date-specific recalibration (e.g., "20200308")
     """
+    from fylat.calibration import setup_cal_mode, CALIBRATIONS
+
     cal = cfg.get("scene", {}).get("calibration", "business")
-    cal_mode_path = os.path.join(code_root, "cal_mode.txt")
-    xcfg_target = os.path.join(code_root, "VIS_Cal_Coeff.xcfg")
-
-    if cal == "recali":
-        with open(cal_mode_path, "w") as f:
-            f.write("recali\n")
-
-        # Find the recali xcfg for this date
-        date = cfg.get("scene", {}).get("date", "")
-        xcfg_source = os.path.join(code_root, f"VIS_Cal_Coeff_{date}.xcfg")
-        if not os.path.exists(xcfg_source):
-            xcfg_source = os.path.join(code_root, "VIS_Cal_Coeff_recali.xcfg")
-        if os.path.exists(xcfg_source):
-            shutil.copy(xcfg_source, xcfg_target)
-    else:
-        # Business — remove cal_mode.txt so Fortran uses built-in coeffs
-        if os.path.exists(cal_mode_path):
-            os.remove(cal_mode_path)
-        # Use business xcfg
-        xcfg_source = os.path.join(code_root, "VIS_Cal_Coeff_business.xcfg")
-        if os.path.exists(xcfg_source):
-            shutil.copy(xcfg_source, xcfg_target)
+    if cal not in CALIBRATIONS:
+        print(f"  Warning: unknown calibration '{cal}', falling back to 'business'")
+        cal = "business"
+    setup_cal_mode(cal, code_root)
 
 
 # ---------------------------------------------------------------------------
