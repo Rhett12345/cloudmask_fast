@@ -223,11 +223,13 @@ def setup_calibration(cfg: Dict[str, Any], code_root: str) -> None:
       - "recali": use default external recalibration
       - "YYYYMMDD": use date-specific recalibration (e.g., "20200308")
     """
-    from fylat.calibration import setup_cal_mode, CALIBRATIONS
+    from fylat.calibration import setup_cal_mode, list_calibrations
 
     cal = cfg.get("scene", {}).get("calibration", "business")
-    if cal not in CALIBRATIONS:
+    available = list_calibrations()
+    if cal not in available:
         print(f"  Warning: unknown calibration '{cal}', falling back to 'business'")
+        print(f"  Available: {available[:10]}...")
         cal = "business"
     setup_cal_mode(cal, code_root)
 

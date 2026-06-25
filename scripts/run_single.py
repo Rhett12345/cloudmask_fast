@@ -40,8 +40,12 @@ def main():
         help="Observation time HHMM"
     )
     parser.add_argument(
-        "--calibration", default=None, choices=["business", "recali"],
-        help="Calibration mode override (business=onboard, recali=external)"
+        "--calibration", default=None,
+        help="Calibration mode (business=onboard, YYYYMM=auto-load from ../fy3d_recali/)"
+    )
+    parser.add_argument(
+        "--list-calibrations", action="store_true",
+        help="List all available calibration options and exit"
     )
     parser.add_argument(
         "--base-config", default=None,
@@ -52,6 +56,14 @@ def main():
         help="Generate .nml and setup calibration but don't run Fortran"
     )
     args = parser.parse_args()
+
+    if args.list_calibrations:
+        from fylat.calibration import list_calibrations
+        cals = list_calibrations()
+        print(f"Available calibrations ({len(cals)}):")
+        for c in cals:
+            print(f"  {c}")
+        return 0
 
     # Determine scene YAML path
     if args.scene_yaml:
