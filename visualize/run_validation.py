@@ -2,12 +2,13 @@
 run_validation.py — FY-3D MERSI-II × MYD35 cloud mask validation pipeline
 ===========================================================================
 Orchestrates the full workflow:
-  1. Load MERSI CLM (recal + onboard) and L1B RGB
+  1. Load MERSI CLM (recal + onboard) and L1B RGB + 10.8 µm BT
   2. Parse MERSI orbit datetime
   3. Find, load, filter, and resample matching MYD35 granule
   4. Build Figure 1  (MERSI recal vs onboard)
-  5. Build Figure 2  (MERSI vs MYD35 truth)
-  6. Print & optionally save validation statistics
+  5. Build Figure 2  (MERSI recal/onboard vs MYD35 — both CLM side by side)
+  6. Build Figure 3  (IR-enhanced: RGB + 10.8 µm BT + MYD35 + recal + diff)
+  7. Print & optionally save validation statistics
 
 CLI usage
 ---------
@@ -46,12 +47,13 @@ from pathlib import Path
 import numpy as np
 
 from io_mersi import (
-    load_clm_hdf5, load_mersi_l1b, find_l1b_for_clm,
+    load_clm_hdf5, load_mersi_l1b, load_mersi_bt108, find_l1b_for_clm,
     parse_mersi_datetime, print_clm_distribution,
 )
 from io_myd35 import load_best_myd35_for_mersi
 from figure_1 import make_figure1_from_arrays
 from figure_2 import make_figure2
+from figure_3 import make_figure3
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -69,13 +71,15 @@ def run_single_orbit(
     min_overlap:     float     = 0.05,
     skip_fig1:       bool      = False,
     skip_fig2:       bool      = False,
+    skip_fig3:       bool      = False,
 ) -> dict:
     """
     Full pipeline for one orbit.
 
     Returns
     -------
-    dict with keys: 'fig1_output', 'fig2_output', 'stats' (or None if skipped)
+    dict with keys: 'fig1_output', 'fig2_output', 'fig3_output',
+                    'stats' (or None if skipped), 'orbit_tag'
     """
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -104,12 +108,15 @@ def run_single_orbit(
     recal_clm   = recal_data["clm"]
     onboard_clm = onboard_data["clm"]
 
-    # ── 3. Load MERSI L1B RGB ────────────────────────────────────────
+    # ── 3. Load MERSI L1B (RGB + 10.8 µm BT) ───────────────────────
     l1b_path = find_l1b_for_clm(recal_path, mersi_root)
     l1b_data = load_mersi_l1b(l1b_path) if l1b_path else None
     rgb      = l1b_data["rgb"] if l1b_data else None
+    bt108    = load_mersi_bt108(l1b_path) if l1b_path else None
     if rgb is None:
         print("[WARN] No L1B RGB — panels will show grey footprint.")
+    if bt108 is None:
+        print("[WARN] No L1B BT 10.8 µm — IR panel will be blank.")
 
     # ── 4. Figure 1: MERSI recal vs onboard ─────────────────────────
     fig1_out = str(out_dir / f"fig1_{orbit_tag}.png")
@@ -127,18 +134,21 @@ def run_single_orbit(
     else:
         print(f"[SKIP] Figure 1")
 
-    # ── 5. MYD35 matching ────────────────────────────────────────────
-    stats = None
+    # ── 5. MYD35 matching (shared by Figure 2 and Figure 3) ─────────
+    stats    = None
     fig2_out = None
+    fig3_out = None
 
-    if skip_fig2:
-        print("[SKIP] Figure 2")
+    need_myd35 = (not skip_fig2) or (not skip_fig3)
+
+    if not need_myd35:
+        print("[SKIP] Figure 2 and Figure 3 (both skipped)")
     else:
         mersi_dt = parse_mersi_datetime(onboard_path)
         if mersi_dt is None:
-            print("[WARN] Could not parse MERSI datetime — skipping Figure 2.")
+            print("[WARN] Could not parse MERSI datetime — skipping Fig 2 & 3.")
         elif not myd35_dirs:
-            print("[WARN] No MYD35 search directories provided — skipping Figure 2.")
+            print("[WARN] No MYD35 directories provided — skipping Fig 2 & 3.")
         else:
             myd35_data = load_best_myd35_for_mersi(
                 mersi_lat       = lat,
@@ -150,24 +160,46 @@ def run_single_orbit(
             )
 
             if myd35_data is None:
-                print("[WARN] No matching MYD35 granule found — Figure 2 skipped.")
+                print("[WARN] No matching MYD35 granule — Fig 2 & 3 skipped.")
             else:
-                fig2_out = str(out_dir / f"fig2_{orbit_tag}.png")
-                stats = make_figure2(
-                    mersi_lat      = lat,
-                    mersi_lon      = lon,
-                    recal_clm      = recal_clm,
-                    onboard_clm    = onboard_clm,
-                    myd35_data     = myd35_data,
-                    mersi_rgb      = rgb,
-                    output         = fig2_out,
-                    mersi_date_str = date_str,
-                    step           = step,
-                )
+                # ── Figure 2: recal + onboard vs MYD35 ──────────────
+                if skip_fig2:
+                    print("[SKIP] Figure 2")
+                else:
+                    fig2_out = str(out_dir / f"fig2_{orbit_tag}.png")
+                    stats = make_figure2(
+                        mersi_lat      = lat,
+                        mersi_lon      = lon,
+                        recal_clm      = recal_clm,
+                        onboard_clm    = onboard_clm,
+                        myd35_data     = myd35_data,
+                        mersi_rgb      = rgb,
+                        output         = fig2_out,
+                        mersi_date_str = date_str,
+                        step           = step,
+                    )
+
+                # ── Figure 3: IR-enhanced + recal vs MYD35 ──────────
+                if skip_fig3:
+                    print("[SKIP] Figure 3")
+                else:
+                    fig3_out = str(out_dir / f"fig3_{orbit_tag}.png")
+                    make_figure3(
+                        mersi_lat      = lat,
+                        mersi_lon      = lon,
+                        recal_clm      = recal_clm,
+                        myd35_data     = myd35_data,
+                        mersi_rgb      = rgb,
+                        mersi_bt108    = bt108,
+                        output         = fig3_out,
+                        mersi_date_str = date_str,
+                        step           = step,
+                    )
 
     return {
         "fig1_output": fig1_out,
         "fig2_output": fig2_out,
+        "fig3_output": fig3_out,
         "stats":       stats,
         "orbit_tag":   orbit_tag,
     }
@@ -242,8 +274,9 @@ def run_batch(
         out_dir   = Path(output_dir)
         fig1_out  = out_dir / f"fig1_{orbit_tag}.png"
         fig2_out  = out_dir / f"fig2_{orbit_tag}.png"
+        fig3_out  = out_dir / f"fig3_{orbit_tag}.png"
 
-        if not overwrite and fig1_out.exists() and fig2_out.exists():
+        if not overwrite and fig1_out.exists() and fig2_out.exists() and fig3_out.exists():
             print(f"[SKIP] {orbit_tag} (outputs exist)")
             continue
 
@@ -259,6 +292,7 @@ def run_batch(
                 min_overlap     = min_overlap,
                 skip_fig1       = (not overwrite and fig1_out.exists()),
                 skip_fig2       = (not overwrite and fig2_out.exists()),
+                skip_fig3       = (not overwrite and fig3_out.exists()),
             )
             all_results.append(result)
         except Exception as e:
@@ -314,6 +348,7 @@ Examples:
                         help="Overwrite existing output files")
     parser.add_argument("--skip_fig1",   action="store_true")
     parser.add_argument("--skip_fig2",   action="store_true")
+    parser.add_argument("--skip_fig3",   action="store_true")
 
     args = parser.parse_args()
 
@@ -342,4 +377,5 @@ Examples:
             min_overlap     = args.min_overlap,
             skip_fig1       = args.skip_fig1,
             skip_fig2       = args.skip_fig2,
+            skip_fig3       = args.skip_fig3,
         )

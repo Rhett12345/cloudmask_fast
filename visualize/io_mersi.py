@@ -284,10 +284,11 @@ def _decode_bitmask(cm_raw: np.ndarray) -> np.ndarray:
       • (H, W, N)  — last axis is byte index
       • (N, H, W)  — first axis is byte index
 
-    MOD35 convention (MSB-based):
-      bit 7 (128): Cloud Mask Flag   (0=not determined, 1=determined)
-      bits 5-6  : FOV Quality        (00=Cloudy, 01=Uncertain,
-                                       10=Probably Clear, 11=Confident Clear)
+    Fortran ibset convention (LSB-based, matches HDF5 byte storage and
+    Fortran convert_cloud_mask which uses ibits(...,0,1), ibits(...,1,1), ibits(...,2,1)):
+      bit 0 (value 1):   Cloud Mask Flag   (0=not determined, 1=determined)
+      bits 1-2 (values 2,4): FOV Quality   (00=Cloudy, 01=Uncertain,
+                                              10=Probably Clear, 11=Confident Clear)
     """
     if cm_raw.ndim == 3 and cm_raw.shape[0] < cm_raw.shape[-1]:
         byte0 = cm_raw[0].astype(np.uint8)           # (N, H, W) → byte 0
@@ -296,8 +297,8 @@ def _decode_bitmask(cm_raw: np.ndarray) -> np.ndarray:
     else:
         byte0 = cm_raw.astype(np.uint8)
 
-    determined = ((byte0 >> 7) & 1).astype(bool)      # bit 7 (MSB) = bit 0 in MOD35 doc
-    cat_bits   = (byte0 >> 5) & 3                     # bits 5-6  = bits 1-2 in MOD35 doc
+    determined = (byte0 & 1).astype(bool)              # bit 0 (LSB) = processed flag
+    cat_bits   = (byte0 >> 1) & 3                     # bits 1-2 = cloud category
 
     result = np.full(byte0.shape, -1, dtype=np.int32)
     result[determined] = cat_bits[determined]          # 0=cloudy, 1=uncertain,
@@ -352,60 +353,58 @@ def print_clm_distribution(label: str, clm: np.ndarray) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 # MERSI-II 1-km thermal emissive bands stored in EV_1KM_Emissive (H5).
-# Band ordering (0-based index) in that dataset:
-#   Idx  0 : 3.8  µm   (band 20)
-#   Idx  1 : 4.05 µm   (band 22 / water-vapour)
-#   Idx  2 : 7.2  µm   (band 23 / water-vapour)
-#   Idx  3 : 8.55 µm   (band 24)
-#   Idx  4 : 10.8 µm   (band 25)  ← standard cloud / IR window
-#   Idx  5 : 12.0 µm   (band 26)
-#   Idx  6 : 13.5 µm   (band 27)
+# Actual FY-3D MERSI-II L1B layout — EV_1KM_Emissive has 4 bands:
+#   Idx  0 : 8.55 µm  (band 24)
+#   Idx  1 : 10.8 µm  (band 25)  ← standard cloud / IR window
+#   Idx  2 : 12.0 µm  (band 26)
+#   Idx  3 : 13.5 µm  (band 27)
+# EV_250_Aggr.1KM_Emissive has 2 more (bands 20, 21/22: 3.8, 4.05 µm).
 #
 # Calibration: DN → radiance → BT (inverse Planck)
-# The HDF typically stores IRB_Cal_Coeff (n_bands × 3): [gain, offset, unused]
-# Radiance  L  = (DN * gain) + offset          [mW m⁻² sr⁻¹ cm]
-# BT (K)    T  = c2 / (λ · ln(c1 / (λ⁵ L) + 1))   (Planck inversion)
-#   c1 = 1.1910427e-5  [mW m⁻² sr⁻¹ cm⁴]
-#   c2 = 1.4387752     [cm·K]
-#   λ  = central wavelength in cm
+# IR_Cal_Coeff shape (6, 4, 200): 6 IR bands × 4 coeffs × 200 scan-lines.
+# EV_1KM_Emissive band i maps to IR_Cal_Coeff band (i+2).
+# Calibration formula (quadratic, per-wavenumber):
+#   L_wn  = c0 + c1*DN + c2*DN²          [mW m⁻² sr⁻¹ cm⁻¹]
+# Convert per-wavenumber → per-wavelength for Planck:
+#   L_wl  = L_wn / λ²                    [mW m⁻² sr⁻¹ cm]
+# BT (K) T = c2 / (λ · ln(c1 / (λ⁵ L_wl) + 1))
 
 _C1 = 1.1910427e-5   # mW m⁻² sr⁻¹ cm⁴
 _C2 = 1.4387752      # cm·K
 
-# Central wavelengths in cm for each emissive band index
-_EMISSIVE_LAMBDA_CM = {
-    0: 3.80e-4,
-    1: 4.05e-4,
-    2: 7.20e-4,
-    3: 8.55e-4,
-    4: 10.80e-4,   # ← 10.8 µm window used for IR-enhanced cloud image
-    5: 12.00e-4,
-    6: 13.50e-4,
+# EV_1KM_Emissive band index → (central wavelength cm, IR_Cal_Coeff index)
+_EV1KM_BAND_META = {
+    # ev_idx: (lambda_cm, cal_idx)
+    0: (8.55e-4,  2),   # band 24: 8.55 µm
+    1: (10.80e-4, 3),   # band 25: 10.8 µm  ← IR window
+    2: (12.00e-4, 4),   # band 26: 12.0 µm
+    3: (13.50e-4, 5),   # band 27: 13.5 µm
 }
 
-_BT108_BAND_IDX = 4   # index of 10.8 µm inside EV_1KM_Emissive
+_BT108_EV_IDX = 1   # index of 10.8 µm inside EV_1KM_Emissive
 
 
 def load_mersi_bt108(
     l1b_path: str,
-    band_idx: int = _BT108_BAND_IDX,
+    ev_band_idx: int = _BT108_EV_IDX,
 ) -> np.ndarray | None:
     """
     Read MERSI-II 1-km L1B HDF and return 10.8 µm brightness temperature.
 
     Calibration pipeline:
-      1. Read raw DN from EV_1KM_Emissive[band_idx]
-      2. Apply linear calibration:  L = DN * gain + offset
-         (coefficients from IRB_Cal_Coeff[band_idx])
-      3. Convert radiance → BT via inverse Planck at λ = 10.8 µm
+      1. Read raw DN from EV_1KM_Emissive[ev_band_idx]
+      2. Apply quadratic calibration: L_wn = c0 + c1*DN + c2*DN²
+         (coefficients from IR_Cal_Coeff, averaged over scan-lines)
+      3. Convert per-wavenumber → per-wavelength: L_wl = L_wn / λ²
+      4. Convert radiance → BT via inverse Planck
 
     Parameters
     ----------
     l1b_path : str
         Path to FY3D_MERSI_GBAL_L1_..._1000M_MS.HDF (HDF5).
-    band_idx : int
+    ev_band_idx : int
         Index of the desired emissive band inside EV_1KM_Emissive.
-        Default 4 = 10.8 µm.
+        Default 1 = 10.8 µm.
 
     Returns
     -------
@@ -420,7 +419,7 @@ def load_mersi_bt108(
     try:
         with h5py.File(l1b_path, "r") as f:
 
-            # ── Locate the emissive dataset (try two common paths) ──
+            # ── Locate the emissive dataset ──────────────────────────
             emissive_paths = [
                 "Data/EV_1KM_Emissive",
                 "EV_1KM_Emissive",
@@ -428,7 +427,7 @@ def load_mersi_bt108(
             ev_data = None
             for ep in emissive_paths:
                 if ep in f:
-                    ev_data = f[ep][band_idx].astype(np.float64)
+                    ev_data = f[ep][ev_band_idx].astype(np.float64)
                     break
             if ev_data is None:
                 print(f"[WARN] EV_1KM_Emissive not found in {l1b_path}")
@@ -436,40 +435,58 @@ def load_mersi_bt108(
 
             # ── Calibration coefficients ────────────────────────────
             cal_paths = [
+                "Calibration/IR_Cal_Coeff",
                 "Calibration/IRB_Cal_Coeff",
+                "IR_Cal_Coeff",
                 "IRB_Cal_Coeff",
             ]
             cal = None
             for cp in cal_paths:
                 if cp in f:
-                    cal = f[cp][:]   # shape (n_bands, 3+)
+                    cal = f[cp][:]   # shape (6, 4, 200) or (n_bands, 3+)
                     break
             if cal is None:
-                print(f"[WARN] IRB_Cal_Coeff not found in {l1b_path} — "
+                print(f"[WARN] IR_Cal_Coeff not found in {l1b_path} — "
                       "BT108 not calibrated.")
                 return None
 
-            gain, offset = float(cal[band_idx, 0]), float(cal[band_idx, 1])
+            # ── Get wavelength and calibration index for this EV band ─
+            lam, cal_idx = _EV1KM_BAND_META[ev_band_idx]
+
+            # ── Parse calibration format ─────────────────────────────
+            if cal.ndim == 3:
+                # Per-scan format (n_bands, n_coeff, n_scans): average over scans
+                cal_band = cal[cal_idx].mean(axis=1)  # (4,) → (n_coeff,)
+            else:
+                # Simple format (n_bands, n_coeff)
+                cal_band = cal[cal_idx]
+
+            c0 = float(cal_band[0])
+            c1 = float(cal_band[1])
+            c2 = float(cal_band[2]) if len(cal_band) > 2 else 0.0
 
             # ── Fill-value / valid range ────────────────────────────
-            # Common MERSI fill value for emissive channels is 0 or 65535
             fill_mask = (ev_data == 0) | (ev_data >= 65535)
 
-        # ── DN → radiance ───────────────────────────────────────────
-        radiance = ev_data * gain + offset          # mW m⁻² sr⁻¹ cm
-        radiance[fill_mask] = np.nan
+        # ── DN → radiance (per-wavenumber) ────────────────────────
+        rad_wn = c0 + c1 * ev_data + c2 * ev_data * ev_data   # mW m⁻² sr⁻¹ cm⁻¹
+        rad_wn[fill_mask] = np.nan
+        rad_wn = np.where(rad_wn > 0, rad_wn, np.nan)
 
-        # Guard against non-positive radiance (unphysical after cal)
-        radiance = np.where(radiance > 0, radiance, np.nan)
+        # ── Per-wavenumber → per-wavelength conversion ───────────
+        lam2 = lam ** 2
+        rad_wl = rad_wn / lam2                                # mW m⁻² sr⁻¹ cm
 
-        # ── Radiance → brightness temperature  (inverse Planck) ────
-        lam = _EMISSIVE_LAMBDA_CM.get(band_idx, 10.80e-4)
+        # ── Radiance → brightness temperature (inverse Planck) ──
         lam5 = lam ** 5
-        bt = _C2 / (lam * np.log(_C1 / (lam5 * radiance) + 1.0))
+        bt = _C2 / (lam * np.log(_C1 / (lam5 * rad_wl) + 1.0))
 
         # Sanity clip: physical BT range 170–340 K
         bt = np.where((bt > 170.0) & (bt < 340.0), bt, np.nan)
 
+        print(f"[BT108] Loaded from {os.path.basename(l1b_path)}: "
+              f"valid={np.isfinite(bt).sum()}/{bt.size}, "
+              f"BT range {np.nanmin(bt):.1f}–{np.nanmax(bt):.1f} K")
         return bt.astype(np.float32)
 
     except Exception as e:
