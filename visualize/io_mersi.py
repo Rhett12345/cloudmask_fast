@@ -284,10 +284,10 @@ def _decode_bitmask(cm_raw: np.ndarray) -> np.ndarray:
       • (H, W, N)  — last axis is byte index
       • (N, H, W)  — first axis is byte index
 
-    Fortran ibset convention (LSB-based, matches HDF5 byte storage):
-      bit 0 (value 1):   Cloud Mask Flag   (0=not determined, 1=determined)
-      bits 1-2 (values 2,4): FOV Quality   (00=Cloudy, 01=Uncertain,
-                                              10=Probably Clear, 11=Confident Clear)
+    MOD35 convention (MSB-based):
+      bit 7 (128): Cloud Mask Flag   (0=not determined, 1=determined)
+      bits 5-6  : FOV Quality        (00=Cloudy, 01=Uncertain,
+                                       10=Probably Clear, 11=Confident Clear)
     """
     if cm_raw.ndim == 3 and cm_raw.shape[0] < cm_raw.shape[-1]:
         byte0 = cm_raw[0].astype(np.uint8)           # (N, H, W) → byte 0
@@ -296,8 +296,8 @@ def _decode_bitmask(cm_raw: np.ndarray) -> np.ndarray:
     else:
         byte0 = cm_raw.astype(np.uint8)
 
-    determined = (byte0 & 1).astype(bool)              # bit 0 (LSB) = processed flag
-    cat_bits   = (byte0 >> 1) & 3                     # bits 1-2 = cloud category
+    determined = ((byte0 >> 7) & 1).astype(bool)      # bit 7 (MSB) = bit 0 in MOD35 doc
+    cat_bits   = (byte0 >> 5) & 3                     # bits 5-6  = bits 1-2 in MOD35 doc
 
     result = np.full(byte0.shape, -1, dtype=np.int32)
     result[determined] = cat_bits[determined]          # 0=cloudy, 1=uncertain,
@@ -345,3 +345,133 @@ def print_clm_distribution(label: str, clm: np.ndarray) -> None:
     print("─" * 62)
     print(f"  {'Invalid/unprocessed':<20} {'–':>5}  {invalid:>10,}  {inv_pct:>6.2f}%")
     print(sep + "\n")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.  MERSI-II thermal IR reader — 10.8 µm brightness temperature
+# ─────────────────────────────────────────────────────────────────────────────
+
+# MERSI-II 1-km thermal emissive bands stored in EV_1KM_Emissive (H5).
+# Band ordering (0-based index) in that dataset:
+#   Idx  0 : 3.8  µm   (band 20)
+#   Idx  1 : 4.05 µm   (band 22 / water-vapour)
+#   Idx  2 : 7.2  µm   (band 23 / water-vapour)
+#   Idx  3 : 8.55 µm   (band 24)
+#   Idx  4 : 10.8 µm   (band 25)  ← standard cloud / IR window
+#   Idx  5 : 12.0 µm   (band 26)
+#   Idx  6 : 13.5 µm   (band 27)
+#
+# Calibration: DN → radiance → BT (inverse Planck)
+# The HDF typically stores IRB_Cal_Coeff (n_bands × 3): [gain, offset, unused]
+# Radiance  L  = (DN * gain) + offset          [mW m⁻² sr⁻¹ cm]
+# BT (K)    T  = c2 / (λ · ln(c1 / (λ⁵ L) + 1))   (Planck inversion)
+#   c1 = 1.1910427e-5  [mW m⁻² sr⁻¹ cm⁴]
+#   c2 = 1.4387752     [cm·K]
+#   λ  = central wavelength in cm
+
+_C1 = 1.1910427e-5   # mW m⁻² sr⁻¹ cm⁴
+_C2 = 1.4387752      # cm·K
+
+# Central wavelengths in cm for each emissive band index
+_EMISSIVE_LAMBDA_CM = {
+    0: 3.80e-4,
+    1: 4.05e-4,
+    2: 7.20e-4,
+    3: 8.55e-4,
+    4: 10.80e-4,   # ← 10.8 µm window used for IR-enhanced cloud image
+    5: 12.00e-4,
+    6: 13.50e-4,
+}
+
+_BT108_BAND_IDX = 4   # index of 10.8 µm inside EV_1KM_Emissive
+
+
+def load_mersi_bt108(
+    l1b_path: str,
+    band_idx: int = _BT108_BAND_IDX,
+) -> np.ndarray | None:
+    """
+    Read MERSI-II 1-km L1B HDF and return 10.8 µm brightness temperature.
+
+    Calibration pipeline:
+      1. Read raw DN from EV_1KM_Emissive[band_idx]
+      2. Apply linear calibration:  L = DN * gain + offset
+         (coefficients from IRB_Cal_Coeff[band_idx])
+      3. Convert radiance → BT via inverse Planck at λ = 10.8 µm
+
+    Parameters
+    ----------
+    l1b_path : str
+        Path to FY3D_MERSI_GBAL_L1_..._1000M_MS.HDF (HDF5).
+    band_idx : int
+        Index of the desired emissive band inside EV_1KM_Emissive.
+        Default 4 = 10.8 µm.
+
+    Returns
+    -------
+    bt : (H, W) float32 array of brightness temperature in Kelvin.
+         Invalid / fill pixels are set to NaN.
+    None on any read/calibration failure.
+    """
+    if not l1b_path or not os.path.exists(l1b_path):
+        print(f"[WARN] L1B not found for BT108: {l1b_path}")
+        return None
+
+    try:
+        with h5py.File(l1b_path, "r") as f:
+
+            # ── Locate the emissive dataset (try two common paths) ──
+            emissive_paths = [
+                "Data/EV_1KM_Emissive",
+                "EV_1KM_Emissive",
+            ]
+            ev_data = None
+            for ep in emissive_paths:
+                if ep in f:
+                    ev_data = f[ep][band_idx].astype(np.float64)
+                    break
+            if ev_data is None:
+                print(f"[WARN] EV_1KM_Emissive not found in {l1b_path}")
+                return None
+
+            # ── Calibration coefficients ────────────────────────────
+            cal_paths = [
+                "Calibration/IRB_Cal_Coeff",
+                "IRB_Cal_Coeff",
+            ]
+            cal = None
+            for cp in cal_paths:
+                if cp in f:
+                    cal = f[cp][:]   # shape (n_bands, 3+)
+                    break
+            if cal is None:
+                print(f"[WARN] IRB_Cal_Coeff not found in {l1b_path} — "
+                      "BT108 not calibrated.")
+                return None
+
+            gain, offset = float(cal[band_idx, 0]), float(cal[band_idx, 1])
+
+            # ── Fill-value / valid range ────────────────────────────
+            # Common MERSI fill value for emissive channels is 0 or 65535
+            fill_mask = (ev_data == 0) | (ev_data >= 65535)
+
+        # ── DN → radiance ───────────────────────────────────────────
+        radiance = ev_data * gain + offset          # mW m⁻² sr⁻¹ cm
+        radiance[fill_mask] = np.nan
+
+        # Guard against non-positive radiance (unphysical after cal)
+        radiance = np.where(radiance > 0, radiance, np.nan)
+
+        # ── Radiance → brightness temperature  (inverse Planck) ────
+        lam = _EMISSIVE_LAMBDA_CM.get(band_idx, 10.80e-4)
+        lam5 = lam ** 5
+        bt = _C2 / (lam * np.log(_C1 / (lam5 * radiance) + 1.0))
+
+        # Sanity clip: physical BT range 170–340 K
+        bt = np.where((bt > 170.0) & (bt < 340.0), bt, np.nan)
+
+        return bt.astype(np.float32)
+
+    except Exception as e:
+        print(f"[ERROR] Loading BT108 from {l1b_path}: {e}")
+        return None
