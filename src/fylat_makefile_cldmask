@@ -134,7 +134,7 @@ OBJ =	$(FOBJ) \
 # h4fc/h5fc -show
 #HDF4MYLIB = -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -lmfhdf -ldf -lsz -ljpeg -lz
 #HDF5MYLIB = -I/state/partition1/apps/LIB/include -L/state/partition1/apps/LIB/lib /state/partition1/apps/LIB/lib/libhdf5hl_fortran.a /state/partition1/apps/LIB/lib/libhdf5_hl.a /state/partition1/apps/LIB/lib/libhdf5_fortran.a /state/partition1/apps/LIB/lib/libhdf5.a -L/state/partition1/apps/LIB/lib -L/state/partition1/apps/LIB/lib -lsz -lz -lrt -lm -Wl,-rpath -Wl,/state/partition1/apps/LIB/lib
-HDF4MYLIB = -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -lmfhdf -ldf -lsz -ljpeg -lz -ltirpc
+HDF4MYLIB = -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -L/home/liusy2020/anaconda3/envs/cloudmask/lib -lmfhdf -ldf -lsz -ljpeg -lz -ltirpc
 HDF5MYLIB = -I$(HDF5_ROOT)/include -L$(HDF5_ROOT)/lib $(HDF5_ROOT)/lib/libhdf5hl_fortran.a $(HDF5_ROOT)/lib/libhdf5_hl.a $(HDF5_ROOT)/lib/libhdf5_fortran.a $(HDF5_ROOT)/lib/libhdf5.a -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib -lsz -lz -ldl -lm -Wl,-rpath -Wl,$(HDF5_ROOT)/lib
 #-------------------------
 # Include files 
