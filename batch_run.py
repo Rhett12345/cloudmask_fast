@@ -21,8 +21,8 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
 
 from run_fylat import (
-    discover_time_slots, discover_nwp_files, discover_oisst_file,
-    generate_nml, setup_calibration,
+    discover_time_slots, _build_nwp_map, discover_nwp_for_slot,
+    discover_oisst_file, generate_nml, setup_calibration,
 )
 
 L1B_PATH = "/data/Data_yuq/mersi/"
@@ -138,15 +138,16 @@ def main():
     for date in dates:
         try:
             time_slots = discover_time_slots(L1B_PATH, date)
-            nwp_grib1, nwp_grib2 = discover_nwp_files(NWP_PATH, date)
+            nwp_map = _build_nwp_map(NWP_PATH, date)
             oisst_file = discover_oisst_file(OISST_PATH)
         except (FileNotFoundError, Exception) as e:
             skipped_dates.append((date, str(e)))
             continue
 
         for ts in time_slots:
+            nwp1, nwp2 = discover_nwp_for_slot(NWP_PATH, date, ts, nwp_map)
             for cal in ["business", "recali"]:
-                all_tasks.append((date, ts, cal, nwp_grib1, nwp_grib2, oisst_file))
+                all_tasks.append((date, ts, cal, nwp1, nwp2, oisst_file))
 
     n_dates = len(dates)
     n_tasks = len(all_tasks)

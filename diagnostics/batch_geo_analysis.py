@@ -113,7 +113,7 @@ def main():
         myd = load_best_myd35_for_mersi(
             mersi_lat=data["lat"], mersi_lon=data["lon"], mersi_dt=dt,
             search_dirs=[os.path.join(MYD35_DIR, args.date)],
-            time_window_min=15, min_overlap=0.05,
+            time_window_min=15, min_overlap=0.20,
         )
         if myd is None:
             continue

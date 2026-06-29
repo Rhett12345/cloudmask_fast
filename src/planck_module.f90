@@ -283,6 +283,9 @@ function fylat_planck_rad2tbb(rad, band, units) result(bright)
 
       endif
 
+      ! Safety clip: flag unphysical BT outside Earth range
+      if (bright .lt. 150.0 .or. bright .gt. 400.0) bright = -1.0
+
 end function fylat_planck_rad2tbb
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

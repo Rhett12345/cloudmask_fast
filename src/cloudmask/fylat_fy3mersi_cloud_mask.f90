@@ -440,24 +440,82 @@ data sg_band /3,4,20,24,25/
 sim = sat%snow_mask(i,j)
 
 !     First get 1km channels - check for bad data
+!     Per-channel dynamic range from FY-3D MERSI-II L1 spec:
+!       ch1-7:  90% max, ch8-15: 30% max, ch16-19: 100% max
+!       ch20: 200-350K, ch21: 200-380K, ch22: 180-280K,
+!       ch23: 180-300K, ch24/25: 180-330K
 
       do  k = 1, sat%nChan
 
         if (k .le. 19) then
-        
-          if (sat%ref_vis(i,j,k) .gt. -99.0 .and. sat%ref_vis(i,j,k) .le. 2.3) then
-            pxldat0(k) = sat%ref_vis(i,j,k) 
+
+          ! VIS/NIR reflective bands: per-channel dynamic range check
+          if (k .le. 7) then
+            ! ch1-7: land/cloud/aerosol, ρ_max=90%
+            if (sat%ref_vis(i,j,k) .ge. 0.0 .and. sat%ref_vis(i,j,k) .le. 1.0) then
+              pxldat0(k) = sat%ref_vis(i,j,k)
+            else
+              pxldat0(k) = bad_data
+            end if
+          else if (k .le. 15) then
+            ! ch8-15: ocean color, ρ_max=30% (ch16=100%)
+            if (sat%ref_vis(i,j,k) .ge. 0.0 .and. sat%ref_vis(i,j,k) .le. 0.5) then
+              pxldat0(k) = sat%ref_vis(i,j,k)
+            else
+              pxldat0(k) = bad_data
+            end if
           else
-            pxldat0(k) = bad_data
+            ! ch16-19: atmospheric water vapor / cirrus, ρ_max=100%
+            if (sat%ref_vis(i,j,k) .ge. 0.0 .and. sat%ref_vis(i,j,k) .le. 1.2) then
+              pxldat0(k) = sat%ref_vis(i,j,k)
+            else
+              pxldat0(k) = bad_data
+            end if
           end if
 
         else
 
-          if (sat%tbb_ir(i,j,k-sat%nvis) .gt. 0.0 .and. sat%tbb_ir(i,j,k-sat%nvis) .lt. 1000.0) then
-            pxldat0(k) = sat%tbb_ir(i,j,k-sat%nvis) 
-          else
+          ! IR emissive bands: per-channel BT dynamic range check
+          select case (k - sat%nvis)
+          case (1)  ! ch20: 3.8um, range 200-350K
+            if (sat%tbb_ir(i,j,1) .ge. 180.0 .and. sat%tbb_ir(i,j,1) .le. 360.0) then
+              pxldat0(k) = sat%tbb_ir(i,j,1)
+            else
+              pxldat0(k) = bad_data
+            end if
+          case (2)  ! ch21: 4.05um, range 200-380K
+            if (sat%tbb_ir(i,j,2) .ge. 180.0 .and. sat%tbb_ir(i,j,2) .le. 390.0) then
+              pxldat0(k) = sat%tbb_ir(i,j,2)
+            else
+              pxldat0(k) = bad_data
+            end if
+          case (3)  ! ch22: 7.2um, range 180-280K
+            if (sat%tbb_ir(i,j,3) .ge. 160.0 .and. sat%tbb_ir(i,j,3) .le. 290.0) then
+              pxldat0(k) = sat%tbb_ir(i,j,3)
+            else
+              pxldat0(k) = bad_data
+            end if
+          case (4)  ! ch23: 8.55um, range 180-300K
+            if (sat%tbb_ir(i,j,4) .ge. 160.0 .and. sat%tbb_ir(i,j,4) .le. 310.0) then
+              pxldat0(k) = sat%tbb_ir(i,j,4)
+            else
+              pxldat0(k) = bad_data
+            end if
+          case (5)  ! ch24: 10.8um, range 180-330K
+            if (sat%tbb_ir(i,j,5) .ge. 160.0 .and. sat%tbb_ir(i,j,5) .le. 340.0) then
+              pxldat0(k) = sat%tbb_ir(i,j,5)
+            else
+              pxldat0(k) = bad_data
+            end if
+          case (6)  ! ch25: 12.0um, range 180-330K
+            if (sat%tbb_ir(i,j,6) .ge. 160.0 .and. sat%tbb_ir(i,j,6) .le. 340.0) then
+              pxldat0(k) = sat%tbb_ir(i,j,6)
+            else
+              pxldat0(k) = bad_data
+            end if
+          case default
             pxldat0(k) = bad_data
-          endif
+          end select
 
         endif
 

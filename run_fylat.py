@@ -39,81 +39,73 @@ DEFAULT_OISST_FILE = "sst.day.mean.20200401.hdf5"
 # ---------------------------------------------------------------------------
 # NWP mapping utilities
 # ---------------------------------------------------------------------------
-def _int2str(v: int) -> str:
-    return f"{v:02d}"
 
 
-def find_nwp_forecast_hours(obs_hour: int) -> Tuple[int, int]:
-    """Map observation hour to GFS forecast lead times (+18h offset).
-
-    NWP cycles: [0, 3, 6, 9, 12, 15, 18, 21, 24]
-    Forecast lead = cycle_hour + 18 (from batch_run.py convention).
-    """
-    nwp_cycles = [0, 3, 6, 9, 12, 15, 18, 21, 24]
-    for i in range(len(nwp_cycles) - 1):
-        if nwp_cycles[i] <= obs_hour < nwp_cycles[i + 1]:
-            n1 = nwp_cycles[i] + 18
-            n2 = nwp_cycles[i + 1] + 18
-            return n1, n2
-    return 18, 21  # fallback
-
-
-def discover_nwp_files(nwp_path: str, date: str) -> Tuple[str, str]:
-    """Auto-discover GFS GRIB2 files for a given date.
-
-    Returns (grib1, grib2) paths suitable for nwp_grib_data1/2 in .nml.
-    """
+def _build_nwp_map(nwp_path: str, date: str) -> Dict[int, str]:
+    """Scan ORG/ GRIB2 files and build valid_hour → grib_path map."""
     org_dir = os.path.join(nwp_path, date, "ORG")
     if not os.path.isdir(org_dir):
         raise FileNotFoundError(f"NWP ORG directory not found: {org_dir}")
 
     gfs_files = sorted(glob.glob(os.path.join(org_dir, "gfs.t*z.pgrb2.0p25.f*")))
-    # Filter out .ok marker files
     gfs_files = [f for f in gfs_files if not f.endswith(".ok")]
-
     if not gfs_files:
-        raise FileNotFoundError(f"No GFS GRIB2 files found in {org_dir}")
+        raise FileNotFoundError(f"No GFS GRIB2 files in {org_dir}")
 
-    # Group by cycle (t06z, t12z, etc.)
-    cycles: Dict[str, List[str]] = {}
+    h2f: Dict[int, str] = {}
     for f in gfs_files:
         basename = os.path.basename(f)
-        # gfs.t06z.pgrb2.0p25.f018
-        parts = basename.split(".")
-        if len(parts) >= 4:
-            cycle = parts[1]  # t06z
-            if cycle not in cycles:
-                cycles[cycle] = []
-            cycles[cycle].append(f)
+        for lead_str, valid_hour in [
+            ("f018", 0), ("f021", 3), ("f024", 6), ("f027", 9),
+            ("f030", 12), ("f033", 15), ("f036", 18), ("f039", 21), ("f042", 24),
+        ]:
+            if lead_str in basename:
+                h2f[valid_hour] = f
+                break
 
-    if not cycles:
-        raise FileNotFoundError(f"Cannot parse GFS cycle from files in {org_dir}")
+    return h2f
 
-    # Use the earliest available cycle (typically 00z or 06z)
-    chosen_cycle = sorted(cycles.keys())[0]
-    cycle_files = sorted(cycles[chosen_cycle])
 
-    # Pick f018 and f021 as defaults (matching existing working configs)
-    f018 = None
-    f021 = None
-    for f in cycle_files:
-        basename = os.path.basename(f)
-        if "f018" in basename:
-            f018 = f
-        elif "f021" in basename:
-            f021 = f
+def discover_nwp_for_slot(
+    nwp_path: str, date: str, time_slot: str, nwp_map: Dict[int, str] = None,
+) -> Tuple[str, str]:
+    """Return the two GRIB2 paths closest to the observation time_slot (HHMM).
 
-    if f018 is None or f021 is None:
-        # Fallback: use first two available
-        if len(cycle_files) >= 2:
-            f018 = cycle_files[0]
-            f021 = cycle_files[1]
+    Builds or reuses a valid_hour → grib_path map, then selects the bounding
+    NWP pair for temporal interpolation.
+    """
+    if nwp_map is None:
+        nwp_map = _build_nwp_map(nwp_path, date)
 
-    if f018 is None or f021 is None:
-        raise FileNotFoundError(f"Need at least 2 GFS forecast files, found {len(cycle_files)}")
+    obs_hour = int(time_slot[:2]) + int(time_slot[2:4]) / 60.0
 
-    print(f"  NWP cycle: {chosen_cycle}, files: {os.path.basename(f018)}, {os.path.basename(f021)}")
-    return f018, f021
+    # Find two closest NWP valid hours
+    best = None
+    best_dist = 999
+    for h in sorted(nwp_map.keys()):
+        d = abs(obs_hour - h)
+        if d < best_dist:
+            best_dist = d
+            best = h
+
+    # Pick the two bounding hours
+    hours = sorted(nwp_map.keys())
+    left = best
+    right = best
+    for h in hours:
+        if h <= obs_hour:
+            left = h
+    for h in reversed(hours):
+        if h >= obs_hour:
+            right = h
+
+    if left == right:
+        # Exact match: use this and next closest
+        candidates = sorted(hours, key=lambda h: abs(h - obs_hour))
+        left = candidates[0]
+        right = candidates[1] if len(candidates) > 1 else candidates[0]
+
+    return nwp_map[left], nwp_map[right]
 
 
 # ---------------------------------------------------------------------------
@@ -499,10 +491,11 @@ Examples:
     time_slots = discover_time_slots(args.l1b_path, args.date)
 
     # =====================================================================
-    # Step 2: Discover NWP files
+    # Step 2: Build NWP hour→grib map (per-slot NWP selection)
     # =====================================================================
-    print("\n  STEP 2: Discover NWP files")
-    nwp_grib1, nwp_grib2 = discover_nwp_files(args.nwp_path, args.date)
+    print("\n  STEP 2: Build NWP map")
+    nwp_map = _build_nwp_map(args.nwp_path, args.date)
+    print(f"  NWP valid hours: {sorted(nwp_map.keys())}")
 
     # =====================================================================
     # Step 3: Discover OISST
@@ -525,19 +518,20 @@ Examples:
         print("  DRY RUN: Generating configuration files")
         print("=" * 60)
         for ts in time_slots:
+            nwp1, nwp2 = discover_nwp_for_slot(args.nwp_path, args.date, ts, nwp_map)
             for cal in calibrations:
                 nml = generate_nml(
                     args.date, ts, cal,
                     args.l1b_path, args.nwp_path, args.oisst_path,
                     args.output_path, code_root,
-                    nwp_grib1, nwp_grib2, oisst_file,
+                    nwp1, nwp2, oisst_file,
                 )
                 nml_file = os.path.join(
                     code_root, f"temp_fy3d_config_{args.date}_{ts}_{cal}.nml"
                 )
                 with open(nml_file, "w") as f:
                     f.write(nml + "\n")
-                print(f"  Written: {nml_file}")
+                print(f"  Written: {nml_file}  NWP={os.path.basename(nwp1)},{os.path.basename(nwp2)}")
         print("\n  Dry run complete.")
         return 0
 
@@ -554,16 +548,17 @@ Examples:
         return 0 if all_ok else 1
 
     # =====================================================================
-    # Step 6: Run all scenes in parallel
+    # Step 6: Run all scenes in parallel (per-slot NWP pairing)
     # =====================================================================
     tasks = []
     for ts in time_slots:
+        nwp1, nwp2 = discover_nwp_for_slot(args.nwp_path, args.date, ts, nwp_map)
         for cal in calibrations:
             tasks.append((
                 args.date, ts, cal,
                 args.l1b_path, args.nwp_path, args.oisst_path,
                 args.output_path, code_root,
-                nwp_grib1, nwp_grib2, oisst_file,
+                nwp1, nwp2, oisst_file,
             ))
 
     n_total = len(tasks)
@@ -573,8 +568,9 @@ Examples:
     print(f"  STEP 6: Run {n_total} retrieval task(s) on {n_cores} core(s)")
     print("=" * 60)
     for ts in time_slots:
+        nwp1, _ = discover_nwp_for_slot(args.nwp_path, args.date, ts, nwp_map)
         for cal in calibrations:
-            print(f"  Task: {args.date}_{ts}_{cal}")
+            print(f"  Task: {args.date}_{ts}_{cal}  NWP={os.path.basename(nwp1)}")
     print()
 
     results_list: List[Tuple] = []
