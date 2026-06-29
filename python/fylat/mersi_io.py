@@ -12,7 +12,10 @@ Usage:
 """
 
 import os
-from typing import Dict, Optional, Tuple
+import glob
+import importlib
+import sys
+from typing import Dict, Optional
 
 import h5py
 import numpy as np
@@ -42,6 +45,79 @@ BT_VALID_RANGE = {
     20: (180.0, 360.0), 21: (180.0, 360.0), 22: (180.0, 340.0),
     23: (180.0, 340.0), 24: (160.0, 340.0), 25: (160.0, 340.0),
 }
+
+_CPP_BACKEND = None
+_CPP_BACKEND_LOADED = False
+
+
+def _project_root() -> str:
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _load_cpp_backend():
+    """Load the optional C++ HDF5 backend built by CMake.
+
+    The source tree workflow usually leaves the extension in build directories
+    such as build_migration/.  We discover those locations automatically so the
+    Python IO layer can use the migrated C++ reader without an install step.
+    """
+    global _CPP_BACKEND, _CPP_BACKEND_LOADED
+    if _CPP_BACKEND_LOADED:
+        return _CPP_BACKEND
+
+    _CPP_BACKEND_LOADED = True
+    try:
+        _CPP_BACKEND = importlib.import_module("fylat_py")
+        return _CPP_BACKEND
+    except ImportError:
+        pass
+
+    root = _project_root()
+    candidates = sorted(glob.glob(os.path.join(root, "build*", "fylat_py*.so")))
+    candidates += sorted(glob.glob(os.path.join(root, "build*", "python", "fylat_py*.so")))
+    for candidate in candidates:
+        module_dir = os.path.dirname(candidate)
+        if module_dir not in sys.path:
+            sys.path.insert(0, module_dir)
+        try:
+            _CPP_BACKEND = importlib.import_module("fylat_py")
+            return _CPP_BACKEND
+        except ImportError:
+            continue
+
+    _CPP_BACKEND = None
+    return None
+
+
+def io_backend_name() -> str:
+    """Return the active low-level dataset IO backend name."""
+    mode = os.environ.get("FYLAT_IO_BACKEND", "auto").lower()
+    if mode == "h5py":
+        return "h5py"
+    return "cpp" if _load_cpp_backend() is not None else "h5py"
+
+
+def _read_dataset(file_path: str, dataset_path: str, dtype=np.float64) -> np.ndarray:
+    """Read a numeric HDF5 dataset through C++ when available.
+
+    Attributes still use h5py because the current C++ phase-1 backend is focused
+    on moving large dataset payload reads first.
+    """
+    mode = os.environ.get("FYLAT_IO_BACKEND", "auto").lower()
+    if mode not in {"auto", "cpp", "h5py"}:
+        raise ValueError(f"Unsupported FYLAT_IO_BACKEND: {mode}")
+
+    if mode != "h5py":
+        backend = _load_cpp_backend()
+        if backend is not None:
+            try:
+                return np.asarray(backend.read_float32(file_path, dataset_path), dtype=dtype)
+            except Exception:
+                if mode == "cpp":
+                    raise
+
+    with h5py.File(file_path, "r") as f:
+        return f[dataset_path][:].astype(dtype)
 
 
 def _planck_rad2tbb(rad: np.ndarray, band: int) -> np.ndarray:
@@ -76,16 +152,6 @@ def _planck_rad2tbb(rad: np.ndarray, band: int) -> np.ndarray:
     return bt.astype(np.float32)
 
 
-def _ir_radcm_to_radum(rad_cm: np.ndarray, band: int) -> np.ndarray:
-    """Convert IR radiance from mW/(m^2 sr cm^-1) to W/(m^2 um sr).
-
-    Formula: rad_um = 1e-3 * rad_cm * wn / wl
-    """
-    wl = IR_WAVELENGTH[band]
-    wn = IR_WAVENUMBER[band]
-    return 1e-3 * rad_cm * wn / wl
-
-
 def read_geo(geo_path: str) -> Dict[str, np.ndarray]:
     """Read FY-3D MERSI-II GEO HDF5 file.
 
@@ -95,8 +161,8 @@ def read_geo(geo_path: str) -> Dict[str, np.ndarray]:
     with h5py.File(geo_path, "r") as f:
         geo = {}
 
-        lat = f["Geolocation/Latitude"][:].astype(np.float64)
-        lon = f["Geolocation/Longitude"][:].astype(np.float64)
+        lat = _read_dataset(geo_path, "Geolocation/Latitude", np.float64)
+        lon = _read_dataset(geo_path, "Geolocation/Longitude", np.float64)
         geo["lat"] = lat
         geo["lon"] = lon
 
@@ -109,15 +175,15 @@ def read_geo(geo_path: str) -> Dict[str, np.ndarray]:
             slope = ds.attrs.get("Slope", 1.0)
             intercept = ds.attrs.get("Intercept", 0.0)
             fill_value = ds.attrs.get("FillValue", -32767)
-            raw = ds[:].astype(np.float64)
+            raw = _read_dataset(geo_path, f"Geolocation/{hdf_key}", np.float64)
             data = np.where(raw != fill_value, (raw + intercept) * slope, np.nan)
             geo[key] = data.astype(np.float32)
 
         # DEM
-        geo["dem"] = f["Geolocation/DEM"][:].astype(np.float32)
+        geo["dem"] = _read_dataset(geo_path, "Geolocation/DEM", np.float32)
 
         # LandSeaMask (uint8 -> int32)
-        geo["lsm"] = f["Geolocation/LandSeaMask"][:].astype(np.int32)
+        geo["lsm"] = _read_dataset(geo_path, "Geolocation/LandSeaMask", np.int32)
 
         # Compute relative azimuth: for FY-3D, rel_az = |180 - wrapped_diff|
         saa = geo["saa"]
@@ -153,14 +219,14 @@ def read_l1b(
     with h5py.File(l1b_path, "r") as f:
         # --- Read calibration coefficients ---
         # VIS_Cal_Coeff: (19, 3) for bands 1-19 (bands first, coeffs second)
-        vis_cal_raw = f["Calibration/VIS_Cal_Coeff"][:].astype(np.float64)
+        vis_cal_raw = _read_dataset(l1b_path, "Calibration/VIS_Cal_Coeff", np.float64)
         if vis_cal_raw.shape[0] == 19:  # (19, 3) -> (3, 19)
             vis_cal = vis_cal_raw.T
         else:
             vis_cal = vis_cal_raw
 
         # IR_Cal_Coeff: (6, 4, 200) for bands 20-25 (bands, coeffs, scans)
-        ir_cal_full = f["Calibration/IR_Cal_Coeff"][:].astype(np.float64)
+        ir_cal_full = _read_dataset(l1b_path, "Calibration/IR_Cal_Coeff", np.float64)
         ir_cal = np.zeros((6, 3), dtype=np.float64)
         for b in range(6):
             ir_cal[b, 0:3] = ir_cal_full[b, 0:3, 100]  # scan line 100
@@ -171,14 +237,14 @@ def read_l1b(
 
         # --- Read DN data ---
         # VIS bands 1-4: EV_250_Aggr.1KM_RefSB (4, nlines, npixels)
-        vis_250 = f["Data/EV_250_Aggr.1KM_RefSB"][:].astype(np.float64)
+        vis_250 = _read_dataset(l1b_path, "Data/EV_250_Aggr.1KM_RefSB", np.float64)
         # VIS bands 5-19: EV_1KM_RefSB (15, nlines, npixels)
-        vis_1km = f["Data/EV_1KM_RefSB"][:].astype(np.float64)
+        vis_1km = _read_dataset(l1b_path, "Data/EV_1KM_RefSB", np.float64)
 
         # IR bands 20-23: EV_1KM_Emissive (4, nlines, npixels)
-        ir_1km = f["Data/EV_1KM_Emissive"][:].astype(np.float64)
+        ir_1km = _read_dataset(l1b_path, "Data/EV_1KM_Emissive", np.float64)
         # IR bands 24-25: EV_250_Aggr.1KM_Emissive (2, nlines, npixels)
-        ir_250 = f["Data/EV_250_Aggr.1KM_Emissive"][:].astype(np.float64)
+        ir_250 = _read_dataset(l1b_path, "Data/EV_250_Aggr.1KM_Emissive", np.float64)
 
         # Read Slope/Intercept for IR bands (FY-3D applies scaling before DN->rad)
         ir_1km_slope = f["Data/EV_1KM_Emissive"].attrs.get("Slope", np.ones(4))
@@ -207,7 +273,6 @@ def read_l1b(
 
     for b_local in range(6):
         band = b_local + 20
-        c0, c1, c2 = ir_cal[b_local, 0], ir_cal[b_local, 1], ir_cal[b_local, 2]
 
         if b_local < 4:
             dn = ir_1km[b_local, :, :]

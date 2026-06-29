@@ -48,6 +48,7 @@ from matplotlib.gridspec import GridSpec
 
 from plot_utils import (
     apply_nature_style, PANEL_WIDTH_IN, PANEL_HEIGHT_IN,
+    FIGURE_FACE, TEXT_COLOR,
     make_geo_ax_with_caption, add_gridlines, panel_label, panel_title,
     panel_caption,
     plot_rgb, plot_rgb_placeholder, plot_clm, plot_diff,
@@ -81,14 +82,14 @@ def _build_figure1(
     projection, is_polar = choose_projection(lat)
     extent = get_extent(lat, lon, recal_clm, step=step)
 
-    fig_w = PANEL_WIDTH_IN * 2 + 1.2
-    fig_h = PANEL_HEIGHT_IN * 2 + 0.7
-    fig   = plt.figure(figsize=(fig_w, fig_h), facecolor="white")
+    fig_w = PANEL_WIDTH_IN * 2 + 1.35
+    fig_h = PANEL_HEIGHT_IN * 2 + 0.90
+    fig   = plt.figure(figsize=(fig_w, fig_h), facecolor=FIGURE_FACE)
 
     gs = GridSpec(2, 2, figure=fig,
-                  left=0.06, right=0.88,
-                  top=0.91,  bottom=0.05,
-                  wspace=0.28, hspace=0.36)
+                  left=0.065, right=0.90,
+                  top=0.895, bottom=0.055,
+                  wspace=0.30, hspace=0.42)
 
     titles  = [
         "RGB true colour",
@@ -147,7 +148,7 @@ def _build_figure1(
     fig.suptitle(
         f"FY-3D MERSI-II cloud mask comparison   {date_str}   "
         f"centre {lat_c:.1f}°N  {lon_c:.1f}°E",
-        fontsize=10.5, fontweight="normal", color="#333333", y=0.98)
+        fontsize=10.6, fontweight="semibold", color=TEXT_COLOR, y=0.975)
 
     save_figure(fig, output)
 

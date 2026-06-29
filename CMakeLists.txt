@@ -16,21 +16,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # --- Dependencies ---
-# HDF5 C++ wrapper (header-only, optional for Phase 1)
-# find_package(HighFive QUIET)
-# if(HighFive_FOUND)
-#     message(STATUS "HighFive found: ${HighFive_INCLUDE_DIRS}")
-# else()
-#     message(STATUS "HighFive not found — HDF5 IO via Python h5py (Phase 1)")
-# endif()
+find_package(HDF5 REQUIRED COMPONENTS C CXX)
+find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(pybind11 CONFIG REQUIRED)
 
-# pybind11 for Python bindings
-find_package(pybind11 QUIET)
-if(pybind11_FOUND)
-    message(STATUS "pybind11 found: ${pybind11_INCLUDE_DIRS}")
-else()
-    message(STATUS "pybind11 not found — Python bindings deferred")
-endif()
+message(STATUS "HDF5 include dirs: ${HDF5_INCLUDE_DIRS}")
+message(STATUS "Python executable: ${Python_EXECUTABLE}")
 
 # Eigen for linear algebra (NWP interpolation, Phase 2+)
 find_package(Eigen3 QUIET)
@@ -39,28 +30,24 @@ if(Eigen3_FOUND)
 endif()
 
 # ============================================================================
-# Phase 1: C++ MERSI L1 HDF5 Reader (HighFive-based, deferred until available)
+# Phase 1: C++ HDF5 IO library and Python bindings
 # ============================================================================
-# add_library(fylat_io STATIC
-#     src/cpp/io/mersi_l1_reader.cpp
-#     src/cpp/io/nwp_grib_reader.cpp
-#     src/cpp/io/clm_writer.cpp
-# )
-# target_include_directories(fylat_io PUBLIC
-#     ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp
-#     ${HighFive_INCLUDE_DIRS}
-# )
-# target_link_libraries(fylat_io PUBLIC HighFive::HighFive)
+add_library(fylat_io STATIC
+    src/cpp/io/hdf5_io.cpp
+)
+target_include_directories(fylat_io PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp
+    ${HDF5_INCLUDE_DIRS}
+)
+target_link_libraries(fylat_io PUBLIC
+    ${HDF5_CXX_LIBRARIES}
+    ${HDF5_LIBRARIES}
+)
 
-# ============================================================================
-# Phase 1: pybind11 Python module (deferred until HighFive available)
-# ============================================================================
-# if(pybind11_FOUND)
-#     pybind11_add_module(fylat_py
-#         src/python_bindings/bindings.cpp
-#     )
-#     target_link_libraries(fylat_py PRIVATE fylat_io)
-# endif()
+pybind11_add_module(fylat_py
+    src/python_bindings/bindings.cpp
+)
+target_link_libraries(fylat_py PRIVATE fylat_io)
 
 # ============================================================================
 # Legacy Fortran build (via external Makefile for now)
@@ -75,9 +62,27 @@ add_custom_target(fortran_build
 # Tests
 # ============================================================================
 enable_testing()
+add_test(
+    NAME cpp_io_smoke
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cpp_io_smoke.py
+)
+set_tests_properties(cpp_io_smoke PROPERTIES
+    ENVIRONMENT "PYTHONPATH=$<TARGET_FILE_DIR:fylat_py>"
+)
+add_test(
+    NAME nwp_reader_layout
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_nwp_reader_layout.py
+)
+add_test(
+    NAME mersi_io_cpp_backend
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mersi_io_cpp_backend.py
+)
+set_tests_properties(mersi_io_cpp_backend PROPERTIES
+    ENVIRONMENT "PYTHONPATH=$<TARGET_FILE_DIR:fylat_py>:${CMAKE_CURRENT_SOURCE_DIR}/python;FYLAT_IO_BACKEND=cpp"
+)
+
 add_custom_target(check
-    COMMAND ${CMAKE_COMMAND} -E echo "Phase 1 verification: run 3 orbits"
-    COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/run_fylat.py --date 20220803
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

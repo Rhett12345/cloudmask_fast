@@ -93,6 +93,26 @@ python scripts/run_single.py --date 20220803 --time 0740 --dry-run
 - `config/default.yaml` — 默认参数
 - `config/scenes/YYYYMMDD_HHMM.yaml` — 场景专属覆盖
 
+### C++ IO 后端（M1 迁移）
+
+Python 侧的 `fylat.mersi_io` 已接入 C++ HDF5/pybind11 后端。构建后会优先用 C++ 读取大块 HDF5 dataset，属性读取和缺省兜底仍由 h5py 负责。
+
+```bash
+mkdir -p build_migration
+cd build_migration
+cmake .. -DCMAKE_PREFIX_PATH="$HOME/anaconda3;$HOME/anaconda3/lib/python3.11/site-packages/pybind11/share/cmake/pybind11"
+cmake --build . --target fylat_py -j2
+ctest --output-on-failure
+```
+
+常用开关：
+
+```bash
+FYLAT_IO_BACKEND=auto  python scripts/run_single.py ...  # 默认：有 C++ 后端则使用，否则回退 h5py
+FYLAT_IO_BACKEND=cpp   python -c "from fylat.mersi_io import io_backend_name; print(io_backend_name())"
+FYLAT_IO_BACKEND=h5py  python scripts/run_single.py ...  # 强制回退旧 Python h5py 读取
+```
+
 ### 传统 namelist 方式
 
 ```bash

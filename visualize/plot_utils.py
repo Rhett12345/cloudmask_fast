@@ -99,11 +99,16 @@ NATURE_DPI      = 300
 
 FONT_FAMILY = ["Helvetica Neue", "Arial", "DejaVu Sans", "sans-serif"]
 
+FIGURE_FACE = "#FBFAF7"
+AX_FACE     = "#FFFFFF"
+TEXT_COLOR  = "#252525"
+MUTED_TEXT  = "#555555"
+
 CLM_HEX = {
-    0: "#2166AC",   # Cloudy             – deep blue
-    1: "#74ADD1",   # Prob. Cloudy       – light blue
-    2: "#FEE090",   # Prob. Clear        – pale amber
-    3: "#D73027",   # Confident Clear    – brick red
+    0: "#2F5F9E",   # Cloudy             – deep blue
+    1: "#8CC7DD",   # Prob. Cloudy       – light blue
+    2: "#F2CF70",   # Prob. Clear        – soft amber
+    3: "#D95F4A",   # Confident Clear    – muted red
 }
 CLM_LABEL = {
     0: "Cloudy",
@@ -119,12 +124,12 @@ CLM_NORM = mcolors.BoundaryNorm([-0.5, 0.5, 1.5, 2.5, 3.5], CLM_CMAP.N)
 DELTA_CMAP = "RdBu_r"
 DELTA_VMAX = 3.0
 
-LAND_COLOR   = "#F2EFE9"
-OCEAN_COLOR  = "#E3EDF6"
-LAKE_COLOR   = "#D6E4F0"
-COAST_COLOR  = "#555555"
-BORDER_COLOR = "#999999"
-GRID_COLOR   = "#C9C9C9"
+LAND_COLOR   = "#F1EEE8"
+OCEAN_COLOR  = "#E7F0F6"
+LAKE_COLOR   = "#DBE9F2"
+COAST_COLOR  = "#5E5E5E"
+BORDER_COLOR = "#AAAAAA"
+GRID_COLOR   = "#BFC4C8"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -143,7 +148,12 @@ def apply_nature_style() -> None:
         "legend.fontsize":      8,
         "legend.framealpha":    0.9,
         "legend.edgecolor":     "#CCCCCC",
+        "figure.facecolor":     FIGURE_FACE,
+        "axes.facecolor":       AX_FACE,
+        "axes.edgecolor":       "#BDBDBD",
         "axes.linewidth":       0.6,
+        "axes.titlepad":        9,
+        "text.color":           TEXT_COLOR,
         "xtick.major.width":    0.6,
         "ytick.major.width":    0.6,
         "xtick.major.size":     2.5,
@@ -151,7 +161,8 @@ def apply_nature_style() -> None:
         "figure.dpi":           150,
         "savefig.dpi":          NATURE_DPI,
         "savefig.bbox":         "tight",
-        "savefig.facecolor":    "white",
+        "savefig.facecolor":    FIGURE_FACE,
+        "savefig.pad_inches":   0.05,
         "pdf.fonttype":         42,
         "ps.fonttype":          42,
         "lines.linewidth":      0.8,
@@ -260,9 +271,9 @@ def _add_basemap_features(ax: plt.Axes) -> None:
     ax.add_feature(_safe(cfeature.OCEAN),     facecolor=OCEAN_COLOR, zorder=0)
     ax.add_feature(_safe(cfeature.LAND),      facecolor=LAND_COLOR,  zorder=1)
     ax.add_feature(_safe(cfeature.LAKES),     facecolor=LAKE_COLOR,  zorder=1)
-    ax.add_feature(_safe(cfeature.COASTLINE), linewidth=0.5,
+    ax.add_feature(_safe(cfeature.COASTLINE), linewidth=0.45,
                    edgecolor=COAST_COLOR, facecolor="none", zorder=4)
-    ax.add_feature(_safe(cfeature.BORDERS),   linewidth=0.3,
+    ax.add_feature(_safe(cfeature.BORDERS),   linewidth=0.28,
                    edgecolor=BORDER_COLOR, facecolor="none", linestyle="--", zorder=4)
 
 
@@ -280,6 +291,7 @@ def make_geo_ax(fig: plt.Figure, spec, projection=None) -> plt.Axes:
         projection = ccrs.PlateCarree()
     ax = fig.add_subplot(spec, projection=projection)
     _add_basemap_features(ax)
+    _style_map_frame(ax)
     # Tag so gridline helper knows which formatter to use
     ax._is_polar = not isinstance(projection, ccrs.PlateCarree)
     return ax
@@ -288,7 +300,7 @@ def make_geo_ax(fig: plt.Figure, spec, projection=None) -> plt.Axes:
 def make_geo_ax_with_caption(
     fig: plt.Figure,
     spec,
-    caption_frac: float = 0.10,
+    caption_frac: float = 0.12,
     projection=None,
 ) -> plt.Axes:
     """
@@ -326,38 +338,51 @@ def make_geo_ax_with_caption(
     ax._caption_ax = cap_ax
 
     _add_basemap_features(ax)
+    _style_map_frame(ax)
     # Tag so gridline helper knows which formatter to use
     ax._is_polar = not isinstance(projection, ccrs.PlateCarree)
     return ax
 
 
+def _style_map_frame(ax: plt.Axes) -> None:
+    """Give map panels a quiet frame without touching the plotted data."""
+    for spine in ax.spines.values():
+        spine.set_linewidth(0.55)
+        spine.set_edgecolor("#B9B9B9")
+    if "geo" in ax.spines:
+        ax.spines["geo"].set_linewidth(0.55)
+        ax.spines["geo"].set_edgecolor("#B9B9B9")
+
+
 def add_gridlines(ax: plt.Axes) -> None:
     """Add gridlines with degree labels, adapting to polar vs. PlateCarree."""
     is_polar = getattr(ax, "_is_polar", False)
-    gl = ax.gridlines(draw_labels=True, linewidth=0.3,
-                      color=GRID_COLOR, alpha=0.9, linestyle=":")
+    gl = ax.gridlines(draw_labels=True, linewidth=0.25,
+                      color=GRID_COLOR, alpha=0.65, linestyle=":")
     gl.top_labels   = False
     gl.right_labels = False
     if is_polar:
         # Polar-stereo projections do not support LONGITUDE_FORMATTER /
         # LATITUDE_FORMATTER — leave formatters as the Cartopy default
         # (plain degree numbers), which renders correctly.
-        gl.xlabel_style = {"size": 6.5, "color": "#444444"}
-        gl.ylabel_style = {"size": 6.5, "color": "#444444"}
+        gl.xlabel_style = {"size": 6.4, "color": MUTED_TEXT}
+        gl.ylabel_style = {"size": 6.4, "color": MUTED_TEXT}
     else:
         gl.xformatter   = LONGITUDE_FORMATTER
         gl.yformatter   = LATITUDE_FORMATTER
-        gl.xlabel_style = {"size": 6.5, "color": "#444444"}
-        gl.ylabel_style = {"size": 6.5, "color": "#444444"}
+        gl.xlabel_style = {"size": 6.4, "color": MUTED_TEXT}
+        gl.ylabel_style = {"size": 6.4, "color": MUTED_TEXT}
 
 
-def panel_label(ax: plt.Axes, letter: str, fontsize: int = 11) -> None:
+def panel_label(ax: plt.Axes, letter: str, fontsize: int = 10) -> None:
     """Bold panel label (a), (b), … outside top-left corner."""
-    ax.text(-0.06, 1.10, f"({letter})",
+    ax.text(-0.045, 1.075, f"({letter})",
             transform=ax.transAxes,
             fontsize=fontsize, fontweight="bold",
             va="bottom", ha="right",
-            fontfamily="sans-serif")
+            color=TEXT_COLOR, fontfamily="sans-serif",
+            bbox=dict(boxstyle="round,pad=0.16,rounding_size=0.03",
+                      fc=FIGURE_FACE, ec="none", alpha=0.95))
 
 
 def panel_title(ax: plt.Axes, text: str) -> None:
@@ -369,8 +394,8 @@ def panel_title(ax: plt.Axes, text: str) -> None:
     drawn outside the axes bounding box. Keep titles under ~22 chars
     for 3-column layouts, ~28 chars for 2-column layouts.
     """
-    ax.set_title(text, fontsize=9, fontweight="bold",
-                 color="#222222", pad=8, loc="left")
+    ax.set_title(text, fontsize=9, fontweight="semibold",
+                 color=TEXT_COLOR, pad=9, loc="left")
 
 
 def panel_caption(ax: plt.Axes, text: str, fontsize: float = 7.5) -> None:
@@ -387,7 +412,7 @@ def panel_caption(ax: plt.Axes, text: str, fontsize: float = 7.5) -> None:
         cap_ax.clear()
         cap_ax.set_axis_off()
         cap_ax.text(0.0, 0.95, text, transform=cap_ax.transAxes,
-                    fontsize=fontsize, color="#333333",
+                    fontsize=fontsize, color=MUTED_TEXT,
                     va="top", ha="left", linespacing=1.3,
                     wrap=True)
         return
@@ -395,7 +420,7 @@ def panel_caption(ax: plt.Axes, text: str, fontsize: float = 7.5) -> None:
     # Fallback: no caption axes attached — use a conservative offset
     ax.text(0.0, -0.34, text,
             transform=ax.transAxes,
-            fontsize=fontsize, color="#333333",
+            fontsize=fontsize, color=MUTED_TEXT,
             va="top", ha="left", linespacing=1.4)
 
 
@@ -554,18 +579,17 @@ def plot_diff(
 def add_clm_colorbar(
     fig: plt.Figure,
     ax: plt.Axes,
-    shrink: float = 0.70,
-    pad: float = 0.10,
+    shrink: float = 0.74,
+    pad: float = 0.055,
 ) -> None:
     sm = plt.cm.ScalarMappable(cmap=CLM_CMAP, norm=CLM_NORM)
     sm.set_array([])
     cbar = fig.colorbar(sm, ax=ax, orientation="vertical",
-                        shrink=shrink, pad=pad, aspect=22,
+                        shrink=shrink, pad=pad, aspect=24,
                         ticks=[0, 1, 2, 3])
     cbar.ax.set_yticklabels(
         [CLM_LABEL[v] for v in range(4)], fontsize=7.5)
-    cbar.ax.tick_params(length=2.5, width=0.5)
-    cbar.outline.set_linewidth(0.5)
+    _style_colorbar(cbar)
     return cbar
 
 
@@ -574,15 +598,22 @@ def add_diff_colorbar(
     ax: plt.Axes,
     sm,
     label: str = "Δ class",
-    shrink: float = 0.70,
-    pad: float = 0.10,
+    shrink: float = 0.74,
+    pad: float = 0.055,
 ) -> None:
     cbar = fig.colorbar(sm, ax=ax, orientation="vertical",
-                        shrink=shrink, pad=pad, aspect=22)
+                        shrink=shrink, pad=pad, aspect=24)
     cbar.set_label(label, fontsize=7.5, labelpad=4)
-    cbar.ax.tick_params(labelsize=7, length=2.5, width=0.5)
-    cbar.outline.set_linewidth(0.5)
+    _style_colorbar(cbar)
     return cbar
+
+
+def _style_colorbar(cbar) -> None:
+    cbar.ax.tick_params(labelsize=7, length=2.2, width=0.45,
+                        colors=MUTED_TEXT, pad=2)
+    cbar.outline.set_linewidth(0.45)
+    cbar.outline.set_edgecolor("#AFAFAF")
+    cbar.ax.yaxis.label.set_color(MUTED_TEXT)
 
 
 def source_label(ax: plt.Axes, text: str, fontsize: float = 6.5) -> None:
@@ -595,7 +626,9 @@ def source_label(ax: plt.Axes, text: str, fontsize: float = 6.5) -> None:
 
 def _no_data_text(ax: plt.Axes, msg: str) -> None:
     ax.text(0.5, 0.5, msg, transform=ax.transAxes,
-            ha="center", va="center", fontsize=8, color="#666666")
+            ha="center", va="center", fontsize=8, color=MUTED_TEXT,
+            bbox=dict(boxstyle="round,pad=0.35,rounding_size=0.08",
+                      fc="white", ec="#D8D8D8", lw=0.5, alpha=0.9))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -605,6 +638,7 @@ def _no_data_text(ax: plt.Axes, msg: str) -> None:
 def save_figure(fig: plt.Figure, output: str) -> None:
     import os
     fig.savefig(output, dpi=NATURE_DPI, bbox_inches="tight",
-                facecolor="white", pil_kwargs={"compression": 6})
+                facecolor=FIGURE_FACE, pad_inches=0.05,
+                pil_kwargs={"compression": 6})
     plt.close(fig)
     print(f"[SAVE] {output}  ({os.path.getsize(output)/1024:.0f} KB)")

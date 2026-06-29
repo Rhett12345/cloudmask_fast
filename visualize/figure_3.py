@@ -58,6 +58,7 @@ from matplotlib.gridspec import GridSpec
 
 from plot_utils import (
     apply_nature_style, PANEL_WIDTH_IN, PANEL_HEIGHT_IN,
+    FIGURE_FACE, TEXT_COLOR, MUTED_TEXT,
     make_geo_ax_with_caption, add_gridlines, panel_label, panel_title,
     panel_caption,
     plot_rgb, plot_rgb_placeholder, plot_clm, plot_diff,
@@ -124,7 +125,9 @@ def plot_ir_bt(
     if not mask.any():
         ax.text(0.5, 0.5, "No BT data\navailable",
                 transform=ax.transAxes, ha="center", va="center",
-                fontsize=8, color="#666666")
+                fontsize=8, color=MUTED_TEXT,
+                bbox=dict(boxstyle="round,pad=0.35,rounding_size=0.08",
+                          fc="white", ec="#D8D8D8", lw=0.5, alpha=0.9))
         return None
 
     bt_plot = np.where(mask, bt_s.astype(np.float64), np.nan)
@@ -145,15 +148,18 @@ def add_bt_colorbar(
     fig: plt.Figure,
     ax: plt.Axes,
     sm,
-    shrink: float = 0.70,
-    pad: float = 0.10,
+    shrink: float = 0.74,
+    pad: float = 0.055,
 ) -> None:
     """Add colourbar for BT panel (b)."""
     cbar = fig.colorbar(sm, ax=ax, orientation="vertical",
-                        shrink=shrink, pad=pad, aspect=22)
+                        shrink=shrink, pad=pad, aspect=24)
     cbar.set_label("BT (K)", fontsize=7.5, labelpad=4)
-    cbar.ax.tick_params(labelsize=7, length=2.5, width=0.5)
-    cbar.outline.set_linewidth(0.5)
+    cbar.ax.tick_params(labelsize=7, length=2.2, width=0.45,
+                        colors=MUTED_TEXT, pad=2)
+    cbar.outline.set_linewidth(0.45)
+    cbar.outline.set_edgecolor("#AFAFAF")
+    cbar.ax.yaxis.label.set_color(MUTED_TEXT)
     return cbar
 
 
@@ -235,14 +241,14 @@ def _build_figure3(
         overlap_extent = get_extent(mersi_lat, mersi_lon, recal_clm, step=step)
 
     # ── Canvas ───────────────────────────────────────────────────────
-    fig_w = PANEL_WIDTH_IN * 3 + 1.6
-    fig_h = PANEL_HEIGHT_IN * 2 + 0.7
-    fig   = plt.figure(figsize=(fig_w, fig_h), facecolor="white")
+    fig_w = PANEL_WIDTH_IN * 3 + 1.90
+    fig_h = PANEL_HEIGHT_IN * 2 + 0.95
+    fig   = plt.figure(figsize=(fig_w, fig_h), facecolor=FIGURE_FACE)
 
     gs = GridSpec(2, 3, figure=fig,
-                  left=0.04, right=0.92,
-                  top=0.91,  bottom=0.05,
-                  wspace=0.40, hspace=0.36)
+                  left=0.045, right=0.94,
+                  top=0.875, bottom=0.055,
+                  wspace=0.44, hspace=0.42)
 
     panel_specs = [gs[0, 0], gs[0, 1], gs[0, 2],
                    gs[1, 0], gs[1, 1], gs[1, 2]]
@@ -283,7 +289,9 @@ def _build_figure3(
     else:
         ax.text(0.5, 0.5, "10.8 µm BT\nnot available",
                 transform=ax.transAxes, ha="center", va="center",
-                fontsize=8, color="#666666")
+                fontsize=8, color=MUTED_TEXT,
+                bbox=dict(boxstyle="round,pad=0.35,rounding_size=0.08",
+                          fc="white", ec="#D8D8D8", lw=0.5, alpha=0.9))
     if overlap_extent:
         ax.set_extent(overlap_extent)
     add_gridlines(ax)
@@ -338,7 +346,7 @@ def _build_figure3(
         f"MERSI: {mersi_date_str}   "
         f"centre {lat_c:.1f}°N {lon_c:.1f}°E"
         + (f"\nMYD35: {myd_basename}" if myd_basename else ""),
-        fontsize=10.0, fontweight="normal", color="#333333", y=0.98)
+        fontsize=10.1, fontweight="semibold", color=TEXT_COLOR, y=0.975)
 
     save_figure(fig, output)
     return {"recal": stats_recal}
