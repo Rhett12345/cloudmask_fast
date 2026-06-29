@@ -1,0 +1,627 @@
+metadata:
+  description: FY-3D MERSI-II cloud mask thresholds — YAML version
+  source: coeff/fylat_thresholds.mersi.ii3d.v8
+  version: '1.0'
+  note: 'Values: [locut, midpt, hicut, power] for conf_test S-curves'
+scenes:
+  ocean_day:
+    description: Daytime ocean (non-polar)
+    thresholds:
+      dobt11:
+      - 267.0
+      - 270.0
+      - 273.0
+      - 1.0
+      do11_12hi:
+      - 3.0
+      do11_4lo:
+      - -5.5
+      - -3.0
+      - -0.5
+      - 1.0
+      doref2:
+      - 0.065
+      - 0.045
+      - 0.03
+      - 1.0
+      doref3:
+      - 0.04
+      - 0.035
+      - 0.03
+      - 1.0
+      dovrathi:
+      - 0.95
+      - 1.1
+      - 1.15
+      - 1.0
+      dovratlo:
+      - 0.95
+      - 0.9
+      - 0.85
+      - 1.0
+      dotci:
+      - 0.035
+      - 0.005
+  ocean_nite:
+    description: Nighttime ocean (non-polar)
+    thresholds:
+      nobt11:
+      - 267.0
+      - 270.0
+      - 273.0
+      - 1.0
+      no11_12hi:
+      - 3.0
+      no11_4lo:
+      - 1.25
+      - 1.0
+      - -1.0
+      - 1.0
+      no86_73:
+      - 19.0
+      - 24.0
+      - 29.0
+      - 1.0
+      no_11var:
+      - 3.0
+      - 6.0
+      - 7.0
+      - 1.0
+  land_day:
+    description: Daytime land (non-polar)
+    thresholds:
+      dl11_12hi:
+      - 3.0
+      dl11_4lo:
+      - -11.0
+      - -10.0
+      - -6.0
+      - 1.0
+      dlref1:
+      - 0.24
+      - 0.2
+      - 0.16
+      - 1.0
+      dlref3:
+      - 0.04
+      - 0.035
+      - 0.03
+      - 1.0
+      dlvrat:
+      - 1.8
+      - 1.85
+      - 1.9
+      - 1.0
+      dltci:
+      - 0.035
+      - 0.0125
+  land_nite:
+    description: Nighttime land (non-polar)
+    thresholds:
+      nl4_12hi:
+      - 15.0
+      - 10.0
+      - 5.0
+      - 1.0
+      nl7_11s:
+      - -22.0
+      - -26.0
+      - -30.0
+      - 1.0
+      nl11_12hi:
+      - 3.0
+      nl_11_4l:
+      - -2.0
+      - -2.5
+      - -3.0
+      - 1.0
+      nl_11_4h:
+      - 5.0
+      - 4.5
+      - 4.0
+      - 1.0
+      nl_11_4m:
+      - -2.5
+      - 4.5
+      - 0.25
+      - 1.0
+      bt_diff_bounds:
+      - 1.0
+      - -1.0
+  day_snow:
+    description: Daytime snow/ice
+    thresholds:
+      ds11_12hi:
+      - 3.0
+      ds11_12adj:
+      - 0.4
+      ds4_11:
+      - 10.0
+      - 7.0
+      - 4.0
+      - 1.0
+      ds4_11hel:
+      - 14.0
+      - 10.0
+      - 6.0
+      - 1.0
+      dsref3:
+      - 0.06
+      - 0.0525
+      - 0.045
+      - 1.0
+      dstci:
+      - 0.035
+      - 0.03
+  nite_snow:
+    description: Nighttime snow/ice
+    thresholds:
+      ns11_12hi:
+      - 3.0
+      ns11_12adj:
+      - 0.4
+      ns11_4lo:
+      - 0.7
+      - 0.6
+      - 0.5
+      - 1.0
+      ns4_12hi:
+      - 8.0
+      - 7.0
+      - 5.0
+      - 1.0
+  day_desert:
+    description: Daytime desert
+    thresholds:
+      lds11_12hi:
+      - 3.5
+      - 3.0
+      - 2.5
+      - 1.0
+      lds11_4hi:
+      - -5.0
+      - -7.5
+      - -10.0
+      - 1.0
+      lds11_4lo:
+      - -20.0
+      - -18.0
+      - -14.0
+      - 1.0
+      ldsref2:
+      - 0.42
+      - 0.39
+      - 0.36
+      - 1.0
+      ldsref3:
+      - 0.04
+      - 0.035
+      - 0.03
+      - 1.0
+      ldstci:
+      - 0.035
+      - 0.0125
+  polar_day_land:
+    description: Polar daytime land
+    thresholds:
+      pdl11_12hi:
+      - 3.0
+      pdl11_4lo:
+      - -11.0
+      - -10.0
+      - -6.0
+      - 1.0
+      pdlref1:
+      - 0.22
+      - 0.18
+      - 0.14
+      - 1.0
+      pdlvrat:
+      - 1.8
+      - 1.85
+      - 1.9
+      - 1.0
+      pdlref3:
+      - 0.04
+      - 0.035
+      - 0.03
+      - 1.0
+      pdltci:
+      - 0.035
+      - 0.0125
+  polar_day_ocean:
+    description: Polar daytime ocean
+    thresholds:
+      pdobt11:
+      - 267.0
+      - 270.0
+      - 273.0
+      - 1.0
+      pdo11_12hi:
+      - 3.0
+      pdo11_4lo:
+      - -6.0
+      - -4.0
+      - -1.0
+      - 1.0
+      pdoref2:
+      - 0.065
+      - 0.045
+      - 0.03
+      - 1.0
+      pdoref3:
+      - 0.035
+      - 0.0125
+      - 0.005
+      - 1.0
+      pdovrathi:
+      - 0.95
+      - 1.1
+      - 1.15
+      - 1.0
+      pdovratlo:
+      - 0.95
+      - 0.9
+      - 0.85
+      - 1.0
+      pdotci:
+      - 0.035
+      - 0.005
+  polar_day_snow:
+    description: Polar daytime snow
+    thresholds:
+      dps11_12hi:
+      - 3.0
+      dps11_12adj:
+      - 0.4
+      dps4_11l:
+      - 17.5
+      - 14.5
+      - 11.5
+      - 1.0
+      dps4_11h:
+      - 10.0
+      - 7.0
+      - 4.0
+      - 1.0
+      dps4_11m1:
+      - 14.5
+      - 7.0
+      - 3.0
+      - 1.0
+      bt_11_bnds3:
+      - 230.0
+      - 0.0
+      - 0.0
+      - 245.0
+      dpsref3:
+      - 0.06
+      - 0.0525
+      - 0.045
+      - 1.0
+      dpstci:
+      - 0.035
+      - 0.03
+  polar_day_desert:
+    description: Polar daytime desert
+    thresholds:
+      pds11_12hi:
+      - 3.5
+      - 3.0
+      - 2.5
+      - 1.0
+      pds11_4hi:
+      - -1.0
+      - -2.5
+      - -4.0
+      - 1.0
+      pds11_4lo:
+      - -18.0
+      - -16.0
+      - -13.0
+      - 1.0
+      pdsref2:
+      - 0.34
+      - 0.3
+      - 0.26
+      - 1.0
+      pdsref3:
+      - 0.04
+      - 0.035
+      - 0.03
+      - 1.0
+      pdstci:
+      - 0.035
+      - 0.0125
+  polar_nite_land:
+    description: Polar nighttime land
+    thresholds:
+      pnl11_12hi:
+      - 3.0
+      pn_11_4l:
+      - -0.1
+      - -0.2
+      - -0.3
+      - 1.0
+      pn_11_4h:
+      - 1.1
+      - 1.0
+      - 0.9
+      - 1.0
+      pn_11_4m1:
+      - -0.2
+      - 1.0
+      - 0.1
+      - 1.0
+      pn_7_11l:
+      - -1.0
+      - 0.0
+      - 1.0
+      - 1.0
+      pn_7_11h:
+      - -21.0
+      - -20.0
+      - -19.0
+      - 1.0
+      pn_7_11m1:
+      - 0.0
+      - -4.5
+      - -1.0
+      - 1.0
+      pn_4_12l:
+      - 4.5
+      - 4.0
+      - 3.5
+      - 1.0
+      pn_4_12h:
+      - 2.5
+      - 2.0
+      - 1.5
+      - 1.0
+      pn_4_12m1:
+      - 4.0
+      - 2.0
+      - 0.5
+      - 1.0
+  polar_nite_ocean:
+    description: Polar nighttime ocean
+    thresholds:
+      pnobt11:
+      - 267.0
+      - 270.0
+      - 273.0
+      - 1.0
+      pno11_12hi:
+      - 3.0
+      pno11_4lo:
+      - 1.25
+      - 1.0
+      - -1.0
+      - 1.0
+      pno86_73:
+      - 19.0
+      - 24.0
+      - 29.0
+      - 1.0
+      pno_11var:
+      - 3.0
+      - 6.0
+      - 7.0
+      - 1.0
+  polar_nite_snow:
+    description: Polar nighttime snow
+    thresholds:
+      pns11_12hi:
+      - 3.0
+      pn11_12adj:
+      - 0.4
+      pn_11_4l:
+      - -0.1
+      - -0.2
+      - -0.3
+      - 1.0
+      pn_11_4h:
+      - 1.1
+      - 1.0
+      - 0.9
+      - 1.0
+      pn_11_4m1:
+      - -0.2
+      - 1.0
+      - 0.1
+      - 1.0
+      pn_7_11l:
+      - -1.0
+      - 0.0
+      - 1.0
+      - 1.0
+      pn_7_11h:
+      - -21.0
+      - -20.0
+      - -19.0
+      - 1.0
+      pn_7_11m1:
+      - 0.0
+      - -4.5
+      - -1.0
+      - 1.0
+      pn_4_12l:
+      - 4.5
+      - 4.0
+      - 3.5
+      - 1.0
+      pn_4_12h:
+      - 2.5
+      - 2.0
+      - 1.5
+      - 1.0
+      pn_4_12m1:
+      - 4.0
+      - 2.0
+      - 0.5
+      - 1.0
+  antarctic_day:
+    description: Antarctic daytime (special)
+    thresholds:
+      ant4_11l:
+      - 17.5
+      - 14.5
+      - 11.5
+      - 1.0
+      ant4_11h:
+      - 10.0
+      - 7.0
+      - 4.0
+      - 1.0
+      ant4_11m1:
+      - 14.5
+      - 7.0
+      - 3.0
+      - 1.0
+      bt_11_bnds4:
+      - 230.0
+      - 0.0
+      - 0.0
+      - 245.0
+  shared:
+    description: Shared across multiple scenes (FMFT, sun glint, shadows, land restoral, snow mask)
+    thresholds:
+      pfmft_11maxthre:
+      - 310.0
+      pfmft_btd_min:
+      - 0.0
+      pfmft_ocean:
+      - 1.9
+      - 1.8
+      - 1.7
+      - 1.0
+      pfmft_land:
+      - 4.0
+      - 3.5
+      - 3.0
+      - 1.0
+      pfmft_cold:
+      - 2.0
+      - 1.5
+      - 1.0
+      - 1.0
+      pfmft_snow:
+      - 2.0
+      - 1.5
+      - 1.0
+      - 1.0
+      nfmft_ocean:
+      - -1.0
+      - 0.0
+      - 1.0
+      - 1.0
+      nfmft_land:
+      - -23.0
+      - -22.5
+      - -22.0
+      - 1.0
+      nfmft_desert:
+      - -6.0
+      - -5.0
+      - -5.0
+      - 1.0
+      nfmft_snow:
+      - -6.0
+      - -5.5
+      - -5.0
+      - 1.0
+      nfmft_maxthre:
+      - 1.5
+      snglntv:
+      - 1.0
+      - 1.1
+      snglntvcl:
+      - 1.05
+      - 1.05
+      snglntvch:
+      - 0.95
+      - 1.2
+      sg_tbdfl:
+      - 13.0
+      sg_tbdfh:
+      - 30.0
+      snglrat:
+      - 3.0
+      snglnt0:
+      - 0.115
+      - 0.105
+      - 0.095
+      - 1.0
+      snglnt10:
+      - 0.11
+      - 0.08
+      - 0.01
+      - 1.0
+      snglnt20:
+      - 0.08
+      - 0.05
+      - 0.01
+      - 1.0
+      snglnt_bounds:
+      - 0.0
+      - 10.0
+      - 20.0
+      - 36.0
+      dovar11:
+      - 0.6
+      shadnir:
+      - 0.07
+      - 0.01
+      shavrat:
+      - 0.3
+      shad124:
+      - 0.2
+      nc21:
+      - 20.0
+      ncrat:
+      - 0.85
+      ncvrat:
+      - 1.0
+      ncsig:
+      - 0.04
+      nc11_12:
+      - -1.0
+      sm_bt11:
+      - 280.0
+      sm_ndsi:
+      - 0.4
+      sm_ref2:
+      - 0.11
+      sm_ref3:
+      - 0.0525
+      sm85_11:
+      - 0.5
+      sm37_11:
+      - 9.0
+      sm37_11hel:
+      - 10.0
+      sm_mnir:
+      - 0.17
+      swc_ndvi:
+      - -0.18
+      - 0.4
+      ldsbt11:
+      - 295.0
+      - 300.0
+      - 305.0
+      ldsbt11bd:
+      - 290.0
+      - 295.0
+      - 305.0
+      ldsr5_4_thr:
+      - 2.0
+      ldr5_4_thr:
+      - 3.0
+      ld20m22:
+      - 11.0
+      ld22m31:
+      - 20.0
+      lnbt11:
+      - 287.5
+      - 292.5
+      - 297.5

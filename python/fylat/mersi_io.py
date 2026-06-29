@@ -149,26 +149,32 @@ def read_l1b(
     """
     with h5py.File(l1b_path, "r") as f:
         # --- Read calibration coefficients ---
-        # VIS_Cal_Coeff: (3, 19) for bands 1-19
-        vis_cal = f["Calibration/VIS_Cal_Coeff"][:].astype(np.float64)
+        # VIS_Cal_Coeff: (19, 3) for bands 1-19 (bands first, coeffs second)
+        vis_cal_raw = f["Calibration/VIS_Cal_Coeff"][:].astype(np.float64)
+        if vis_cal_raw.shape[0] == 19:  # (19, 3) -> (3, 19)
+            vis_cal = vis_cal_raw.T
+        else:
+            vis_cal = vis_cal_raw
 
-        # IR_Cal_Coeff: (200, 4, 6) for bands 20-25, take scan line 100
+        # IR_Cal_Coeff: (6, 4, 200) for bands 20-25 (bands, coeffs, scans)
         ir_cal_full = f["Calibration/IR_Cal_Coeff"][:].astype(np.float64)
-        ir_cal = ir_cal_full[100, 0:3, :].T  # (6, 3)
+        ir_cal = np.zeros((6, 3), dtype=np.float64)
+        for b in range(6):
+            ir_cal[b, 0:3] = ir_cal_full[b, 0:3, 100]  # scan line 100
 
         # Apply recalibration override if provided
         if recal_xcfg_path and os.path.exists(recal_xcfg_path):
             vis_cal = _load_recal_xcfg(recal_xcfg_path, vis_cal)
 
         # --- Read DN data ---
-        # VIS bands 1-4: EV_250_Aggr.1KM_RefSB (nlines, npixels, 4)
+        # VIS bands 1-4: EV_250_Aggr.1KM_RefSB (4, nlines, npixels)
         vis_250 = f["Data/EV_250_Aggr.1KM_RefSB"][:].astype(np.float64)
-        # VIS bands 5-19: EV_1KM_RefSB (nlines, npixels, 15)
+        # VIS bands 5-19: EV_1KM_RefSB (15, nlines, npixels)
         vis_1km = f["Data/EV_1KM_RefSB"][:].astype(np.float64)
 
-        # IR bands 20-23: EV_1KM_Emissive (nlines, npixels, 4)
+        # IR bands 20-23: EV_1KM_Emissive (4, nlines, npixels)
         ir_1km = f["Data/EV_1KM_Emissive"][:].astype(np.float64)
-        # IR bands 24-25: EV_250_Aggr.1KM_Emissive (nlines, npixels, 2)
+        # IR bands 24-25: EV_250_Aggr.1KM_Emissive (2, nlines, npixels)
         ir_250 = f["Data/EV_250_Aggr.1KM_Emissive"][:].astype(np.float64)
 
         # Read Slope/Intercept for IR bands (FY-3D applies scaling before DN->rad)
@@ -177,7 +183,7 @@ def read_l1b(
         ir_250_slope = f["Data/EV_250_Aggr.1KM_Emissive"].attrs.get("Slope", np.ones(2))
         ir_250_intercept = f["Data/EV_250_Aggr.1KM_Emissive"].attrs.get("Intercept", np.zeros(2))
 
-    nlines, npixels = vis_1km.shape[0], vis_1km.shape[1]
+    nlines, npixels = vis_1km.shape[1], vis_1km.shape[2]
 
     # --- DN to reflectance for VIS bands ---
     # Formula for FY-3D: ref = (c0 + c1*DN + c2*DN^2) * 0.01 / cos(SZA)
@@ -186,9 +192,9 @@ def read_l1b(
     for b in range(19):
         c0, c1, c2 = vis_cal[0, b], vis_cal[1, b], vis_cal[2, b]
         if b < 4:
-            dn = vis_250[:, :, b]
+            dn = vis_250[b, :, :]
         else:
-            dn = vis_1km[:, :, b - 4]
+            dn = vis_1km[b - 4, :, :]
         ref = (c0 + c1 * dn + c2 * dn**2) * 0.01
         ref_vis[:, :, b] = ref.astype(np.float32)
 
@@ -201,11 +207,11 @@ def read_l1b(
         c0, c1, c2 = ir_cal[b_local, 0], ir_cal[b_local, 1], ir_cal[b_local, 2]
 
         if b_local < 4:
-            dn = ir_1km[:, :, b_local]
+            dn = ir_1km[b_local, :, :]
             slope = ir_1km_slope[b_local]
             intercept = ir_1km_intercept[b_local]
         else:
-            dn = ir_250[:, :, b_local - 4]
+            dn = ir_250[b_local - 4, :, :]
             slope = ir_250_slope[b_local - 4]
             intercept = ir_250_intercept[b_local - 4]
 
