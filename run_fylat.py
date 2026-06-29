@@ -29,6 +29,8 @@ from typing import Dict, List, Optional, Tuple
 # Default paths — override via environment or command line
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "python"))
+
 DEFAULT_L1B_PATH = "/data/Data_yuq/mersi/"
 DEFAULT_NWP_PATH = "/data/nwp/"
 DEFAULT_OISST_PATH = "/data/Data_minmin/oisst/"
@@ -48,7 +50,8 @@ def _build_nwp_map(nwp_path: str, date: str) -> Dict[int, str]:
         raise FileNotFoundError(f"NWP ORG directory not found: {org_dir}")
 
     gfs_files = sorted(glob.glob(os.path.join(org_dir, "gfs.t*z.pgrb2.0p25.f*")))
-    gfs_files = [f for f in gfs_files if not f.endswith(".ok")]
+    gfs_files = [f for f in gfs_files
+                 if not f.endswith(".ok") and not f.endswith(".idx")]
     if not gfs_files:
         raise FileNotFoundError(f"No GFS GRIB2 files in {org_dir}")
 
@@ -324,6 +327,70 @@ def build_executable() -> None:
 # ---------------------------------------------------------------------------
 # Single scene execution
 # ---------------------------------------------------------------------------
+def preprocess_nwp(nwp_path: str, date: str, time_slots: List[str],
+                   nwp_map: Dict[int, str]) -> Dict[str, str]:
+    """Pre-generate NWP .bin files so Fortran skips wgrib2 system() calls.
+
+    This replaces the wgrib/ shell scripts.  Python calls wgrib2 to generate
+    flat binary files that Fortran reads via direct-access READ.
+
+    Returns:
+        Dict mapping (grib1, grib2) pair key -> bin_path.
+    """
+    from fylat.nwp_reader import grib2_to_binary
+    import re
+
+    # Collect unique GRIB2 file pairs across all time slots
+    seen_pairs = set()
+    for ts in time_slots:
+        nwp1, nwp2 = discover_nwp_for_slot(nwp_path, date, ts, nwp_map)
+        seen_pairs.add((nwp1, nwp2))
+
+    bin_map = {}
+    print(f"\n  NWP preprocessing: {len(seen_pairs)} unique GRIB2 pair(s)")
+
+    for nwp1, nwp2 in sorted(seen_pairs):
+        # Extract time info for bin naming (match Fortran's convert_grib_to_binary)
+        def _extract(fp):
+            basename = os.path.basename(fp)
+            m = re.search(r't(\d{2})z.*\.f(\d{3})', basename)
+            if m:
+                return m.group(1) + 'z', m.group(2)
+            return '00z', '000'
+
+        t1_cycle, t1_lead = _extract(nwp1)
+        t2_cycle, t2_lead = _extract(nwp2)
+        bin_name = f"gfs0p25_41L_{t1_cycle}_{t1_lead}_{t2_lead}_uv"
+        bin_path = os.path.join(nwp_path, date, bin_name)
+
+        if os.path.exists(bin_path):
+            print(f"  [NWP] Binary exists: {bin_name}")
+        else:
+            # Generate from first GRIB
+            grib2_to_binary(nwp1, bin_path)
+            # Append second GRIB (use a temp file, concatenate)
+            import tempfile
+            tmp_bin = tempfile.mktemp(suffix="_nwp2.bin")
+            try:
+                grib2_to_binary(nwp2, tmp_bin)
+                # Concatenate: first file + second file
+                with open(bin_path, "ab") as out_f:
+                    with open(tmp_bin, "rb") as in_f:
+                        out_f.write(in_f.read())
+                n_bytes = os.path.getsize(bin_path)
+                print(f"  [NWP] Generated: {bin_name} ({n_bytes/1024/1024:.0f} MB)")
+            finally:
+                if os.path.exists(tmp_bin):
+                    os.remove(tmp_bin)
+
+        bin_map[(nwp1, nwp2)] = bin_path
+
+    return bin_map
+
+
+# ---------------------------------------------------------------------------
+# Single scene execution (original)
+# ---------------------------------------------------------------------------
 def run_single_scene(args: Tuple) -> Tuple[str, str, str, int, str]:
     """Run a single Fortran execution. Designed for parallel invocation.
 
@@ -503,6 +570,14 @@ Examples:
     print("\n  STEP 3: Discover OISST file")
     oisst_file = discover_oisst_file(args.oisst_path)
     print(f"  OISST: {os.path.basename(oisst_file)}")
+
+    # =====================================================================
+    # Step 3.5: Pre-generate NWP binary files (replaces wgrib/ shell scripts)
+    # =====================================================================
+    if not args.skip_nwp:
+        print("\n  STEP 3.5: NWP preprocessing (wgrib2 via Python)")
+        preprocess_nwp(args.nwp_path, args.date, time_slots, nwp_map)
+        print("  NWP preprocessing: DONE (wgrib shell scripts retired)")
 
     # =====================================================================
     # Step 4: Build
