@@ -60,9 +60,12 @@ def _planck_rad2tbb(rad: np.ndarray, band: int) -> np.ndarray:
     tci = SRF_TCI[band]
     tcs = SRF_TCS[band]
 
-    # brite_m: BT = C2*cwn / ln(C1*cwn^3 / (1e-5*R) + 1)
+    # brite_m (Fortran equivalent with pre-computed constants):
+    # Fortran: C2_SI * (100*cwn) / ln(C1_SI * (100*cwn)^3 / (1e-5*R) + 1)
+    # Simplifies to: C2 * cwn / ln(C1 * cwn^3 / R + 1)
+    # where C1 = C1_SI * 1e11, C2 = C2_SI * 100
     rad_clipped = np.maximum(rad, 1e-10)
-    bt_planck = C2 * cwn / np.log(C1 * cwn**3 / (1e-5 * rad_clipped) + 1.0)
+    bt_planck = C2 * cwn / np.log(C1 * cwn**3 / rad_clipped + 1.0)
 
     # SRF correction: BT_final = (BT_planck - tci) / tcs
     bt = (bt_planck - tci) / tcs
