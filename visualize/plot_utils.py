@@ -178,6 +178,146 @@ def subsample(arr: np.ndarray, step: int) -> np.ndarray:
     return arr[::step, ::step]
 
 
+def _valid_lonlat(lat: np.ndarray, lon: np.ndarray, extra_mask=None) -> np.ndarray:
+    mask = np.isfinite(lat) & np.isfinite(lon)
+    if extra_mask is not None:
+        mask &= extra_mask
+    return mask
+
+
+def _lon_circular_span(lon: np.ndarray) -> tuple[float, float, float]:
+    """Return minimal circular lon interval in [0,360): start, end, width."""
+    lo = np.mod(np.asarray(lon, dtype=np.float64), 360.0)
+    lo = lo[np.isfinite(lo)]
+    if lo.size == 0:
+        return np.nan, np.nan, np.nan
+    if lo.size == 1:
+        x = float(lo[0])
+        return x, x, 0.0
+    xs = np.sort(lo)
+    gaps = np.diff(np.r_[xs, xs[0] + 360.0])
+    i = int(np.argmax(gaps))
+    start = float(xs[(i + 1) % xs.size])
+    width = float(360.0 - gaps[i])
+    end = start + width
+    return start, end, width
+
+
+def swath_crosses_dateline(lon: np.ndarray, threshold: float = 180.0) -> bool:
+    """True when valid longitudes are more compact in a 0..360 frame."""
+    lo = np.asarray(lon, dtype=np.float64)
+    lo = lo[np.isfinite(lo)]
+    if lo.size < 2:
+        return False
+    raw_width = float(np.nanmax(lo) - np.nanmin(lo))
+    _, _, circ_width = _lon_circular_span(lo)
+    return raw_width > threshold and circ_width < raw_width
+
+
+def normalize_longitudes_for_plot(lon: np.ndarray, reference_lon: np.ndarray | None = None) -> np.ndarray:
+    """
+    Return a plotting longitude field that is continuous for dateline swaths.
+
+    If the reference swath crosses the antimeridian, negative longitudes are
+    shifted to 0..360.  Otherwise the original -180..180 longitudes are kept.
+    This same function must be used by extent and pcolormesh/scatter.
+    """
+    ref = lon if reference_lon is None else reference_lon
+    if swath_crosses_dateline(ref):
+        return np.where(lon < 0.0, lon + 360.0, lon)
+    return lon
+
+
+def central_longitude_for_swath(lon: np.ndarray | None) -> float:
+    """Projection central_longitude that avoids splitting the swath."""
+    if lon is None:
+        return 0.0
+    return 180.0 if swath_crosses_dateline(lon) else 0.0
+
+
+def extent_crs():
+    """CRS used for all lon/lat extents and geolocation arrays."""
+    return ccrs.PlateCarree()
+
+
+def set_geo_extent(ax: plt.Axes, extent: list | None) -> None:
+    """Set lon/lat extent explicitly in geographic CRS."""
+    if extent:
+        ax.set_extent(extent, crs=extent_crs())
+
+
+def geo_bbox(lat: np.ndarray, lon: np.ndarray, valid_mask=None, step: int = 1) -> tuple | None:
+    """Dateline-safe bbox: (lon_min, lon_max, lat_min, lat_max) in plot lon frame."""
+    la = subsample(lat, step) if step and step > 1 else lat
+    lo0 = subsample(lon, step) if step and step > 1 else lon
+    vm = subsample(valid_mask, step) if (valid_mask is not None and step and step > 1) else valid_mask
+    mask = _valid_lonlat(la, lo0, vm)
+    if not mask.any():
+        return None
+    lo = normalize_longitudes_for_plot(lo0, lon)
+    return (float(np.nanmin(lo[mask])), float(np.nanmax(lo[mask])),
+            float(np.nanmin(la[mask])), float(np.nanmax(la[mask])))
+
+
+def geo_bbox_overlap_fraction(bb1: tuple, bb2: tuple) -> float:
+    """Fractional bbox overlap relative to the smaller bbox."""
+    lon_min = max(bb1[0], bb2[0])
+    lon_max = min(bb1[1], bb2[1])
+    lat_min = max(bb1[2], bb2[2])
+    lat_max = min(bb1[3], bb2[3])
+    if lon_max <= lon_min or lat_max <= lat_min:
+        return 0.0
+    overlap_area = (lon_max - lon_min) * (lat_max - lat_min)
+    area1 = max(0.0, (bb1[1] - bb1[0]) * (bb1[3] - bb1[2]))
+    area2 = max(0.0, (bb2[1] - bb2[0]) * (bb2[3] - bb2[2]))
+    smaller = min(area1, area2)
+    return overlap_area / smaller if smaller > 0 else 0.0
+
+
+def geo_overlap_extent(lat1: np.ndarray, lon1: np.ndarray, mask1,
+                       lat2: np.ndarray, lon2: np.ndarray, mask2,
+                       step: int = 4, pad: float = 0.5) -> list | None:
+    """Dateline-safe intersection extent for two swaths."""
+    ref_lon = np.concatenate([lon1[np.isfinite(lon1)].ravel(), lon2[np.isfinite(lon2)].ravel()])
+
+    def _bb(lat, lon, mask):
+        la = subsample(lat, step)
+        lo0 = subsample(lon, step)
+        ma = subsample(mask, step) if mask is not None else None
+        valid = _valid_lonlat(la, lo0, ma)
+        if not valid.any():
+            return None
+        lo = normalize_longitudes_for_plot(lo0, ref_lon)
+        return (float(lo[valid].min()), float(lo[valid].max()),
+                float(la[valid].min()), float(la[valid].max()))
+
+    bb1 = _bb(lat1, lon1, mask1)
+    bb2 = _bb(lat2, lon2, mask2)
+    if bb1 is None or bb2 is None:
+        return None
+    lon_min = max(bb1[0], bb2[0]) - pad
+    lon_max = min(bb1[1], bb2[1]) + pad
+    lat_min = max(bb1[2], bb2[2]) - pad
+    lat_max = min(bb1[3], bb2[3]) + pad
+    if lon_max <= lon_min or lat_max <= lat_min:
+        return None
+    return [float(lon_min), float(lon_max), float(lat_min), float(lat_max)]
+
+
+def pixel_overlap_fraction_on_mersi(mersi_lat: np.ndarray, mersi_lon: np.ndarray,
+                                    myd35_resampled_clm: np.ndarray,
+                                    mersi_clm: np.ndarray | None = None) -> float:
+    """Fraction of valid MERSI pixels covered by valid resampled MYD35."""
+    base = np.isfinite(mersi_lat) & np.isfinite(mersi_lon)
+    if mersi_clm is not None:
+        base &= (mersi_clm >= 0)
+    denom = int(base.sum())
+    if denom == 0:
+        return 0.0
+    overlap = base & (myd35_resampled_clm >= 0)
+    return float(overlap.sum() / denom)
+
+
 def get_extent(
     lat: np.ndarray,
     lon: np.ndarray,
@@ -185,16 +325,17 @@ def get_extent(
     step: int = 4,
     pad: float = 1.5,
 ) -> list | None:
-    """Return [lon_min, lon_max, lat_min, lat_max] for map extent."""
+    """Return dateline-safe [lon_min, lon_max, lat_min, lat_max]."""
     la = subsample(lat, step)
-    lo = subsample(lon, step)
+    lo0 = subsample(lon, step)
     if clm is not None:
         cl = subsample(clm, step)
-        mask = np.isfinite(la) & np.isfinite(lo) & (cl >= 0)
+        mask = np.isfinite(la) & np.isfinite(lo0) & (cl >= 0)
     else:
-        mask = np.isfinite(la) & np.isfinite(lo)
+        mask = np.isfinite(la) & np.isfinite(lo0)
     if not mask.any():
         return None
+    lo = normalize_longitudes_for_plot(lo0, lon)
     return [float(lo[mask].min()) - pad, float(lo[mask].max()) + pad,
             float(la[mask].min()) - pad, float(la[mask].max()) + pad]
 
@@ -214,51 +355,29 @@ def clamp_extent(extent: list, pad: float = 0.0) -> list:
 # Projection selector
 # ─────────────────────────────────────────────────────────────────────────────
 
-def choose_projection(lat: np.ndarray, polar_threshold: float = 0.5):
+def choose_projection(lat: np.ndarray, lon: np.ndarray | None = None, polar_threshold: float = 0.5):
     """
-    Choose an appropriate Cartopy projection based on the latitude distribution
-    of the swath.
+    Choose a Cartopy projection for the swath.
 
-    Rules
-    -----
-    * If > ``polar_threshold`` (default 50 %) of valid pixels lie at
-      |lat| ≥ 60°, use a polar-stereographic projection centred on
-      the dominant pole (North or South).
-    * Otherwise fall back to ``PlateCarree`` (standard equirectangular),
-      which handles all mid-/low-latitude swaths without distortion.
-
-    Parameters
-    ----------
-    lat : np.ndarray
-        2-D (or 1-D) array of latitudes in decimal degrees.
-    polar_threshold : float
-        Fraction of valid pixels that must exceed |lat| ≥ 60° to trigger
-        a polar projection.  Default 0.5 (50 %).
-
-    Returns
-    -------
-    projection : cartopy.crs.CRS
-        A Cartopy CRS instance ready to pass to ``add_subplot(projection=…)``.
-    is_polar : bool
-        True when a polar projection was selected.
+    The important dateline fix is that non-polar swaths crossing 180° use
+    PlateCarree(central_longitude=180), so the map seam is moved away from the
+    swath.  Polar projections also inherit a suitable central longitude.
     """
+    central_lon = central_longitude_for_swath(lon)
     valid = lat[np.isfinite(lat)]
     if len(valid) == 0:
-        return ccrs.PlateCarree(), False
+        return ccrs.PlateCarree(central_longitude=central_lon), False
 
     polar_frac = np.mean(np.abs(valid) >= 60.0)
     if polar_frac <= polar_threshold:
-        return ccrs.PlateCarree(), False
+        return ccrs.PlateCarree(central_longitude=central_lon), False
 
-    # Dominant pole: whichever hemisphere contains more polar pixels
     n_north = np.sum(valid >= 60.0)
     n_south = np.sum(valid <= -60.0)
-    central_lat = float(np.median(valid))
-
     if n_north >= n_south:
-        return ccrs.NorthPolarStereo(central_longitude=0.0), True
+        return ccrs.NorthPolarStereo(central_longitude=central_lon), True
     else:
-        return ccrs.SouthPolarStereo(central_longitude=0.0), True
+        return ccrs.SouthPolarStereo(central_longitude=central_lon), True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -473,7 +592,7 @@ def plot_rgb(
         return
 
     la = subsample(lat, step)
-    lo = subsample(lon, step)
+    lo = normalize_longitudes_for_plot(subsample(lon, step), lon)
     rg = subsample(rgb, step)
     mask = np.isfinite(la) & np.isfinite(lo)
     if not mask.any():
@@ -498,7 +617,7 @@ def plot_rgb_placeholder(
 ) -> None:
     """Grey footprint when L1B is unavailable."""
     la = subsample(lat, step)
-    lo = subsample(lon, step)
+    lo = normalize_longitudes_for_plot(subsample(lon, step), lon)
     cl = subsample(clm, step)
     mask = np.isfinite(la) & np.isfinite(lo) & (cl >= 0)
     ax.scatter(lo[mask], la[mask], c="#CCCCCC", s=1.2,
@@ -522,7 +641,7 @@ def plot_clm(
     paints over earlier class" scatter-ordering problem.
     """
     la = subsample(lat, step)
-    lo = subsample(lon, step)
+    lo = normalize_longitudes_for_plot(subsample(lon, step), lon)
     cl = subsample(clm, step)
     mask = np.isfinite(la) & np.isfinite(lo) & (cl >= 0)
     if not mask.any():
@@ -551,7 +670,7 @@ def plot_diff(
     (ScalarMappable, mask, diff) for colorbar + stats reuse.
     """
     la = subsample(lat, step)
-    lo = subsample(lon, step)
+    lo = normalize_longitudes_for_plot(subsample(lon, step), lon)
     ca = subsample(clm_a, step)
     cb = subsample(clm_b, step)
     mask = np.isfinite(la) & np.isfinite(lo) & (ca >= 0) & (cb >= 0)

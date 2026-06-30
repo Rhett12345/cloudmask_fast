@@ -74,6 +74,13 @@ add_test(
     COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_nwp_reader_layout.py
 )
 add_test(
+    NAME nwp_backend_selection
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_nwp_backend_selection.py
+)
+set_tests_properties(nwp_backend_selection PROPERTIES
+    ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/python"
+)
+add_test(
     NAME mersi_io_cpp_backend
     COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mersi_io_cpp_backend.py
 )

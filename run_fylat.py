@@ -329,16 +329,17 @@ def build_executable() -> None:
 # ---------------------------------------------------------------------------
 def preprocess_nwp(nwp_path: str, date: str, time_slots: List[str],
                    nwp_map: Dict[int, str]) -> Dict[str, str]:
-    """Pre-generate NWP .bin files so Fortran skips wgrib2 system() calls.
+    """Pre-generate NWP .bin files so Fortran skips legacy script calls.
 
-    This replaces the wgrib/ shell scripts.  Python calls wgrib2 to generate
-    flat binary files that Fortran reads via direct-access READ.
+    This replaces the wgrib/ shell scripts.  Python decodes GRIB2 through the
+    configured FYLAT_NWP_BACKEND (ecCodes by default, wgrib2 only when
+    explicitly requested) and writes flat binary files that Fortran reads via
+    direct-access READ.
 
     Returns:
         Dict mapping (grib1, grib2) pair key -> bin_path.
     """
-    from fylat.nwp_reader import grib2_to_binary
-    import re
+    from fylat.nwp_reader import generate_fortran_nwp_binary
 
     # Collect unique GRIB2 file pairs across all time slots
     seen_pairs = set()
@@ -349,43 +350,40 @@ def preprocess_nwp(nwp_path: str, date: str, time_slots: List[str],
     bin_map = {}
     print(f"\n  NWP preprocessing: {len(seen_pairs)} unique GRIB2 pair(s)")
 
+    day_nwp_path = os.path.join(nwp_path, date)
+    valid_hour_by_grib = {path: hour for hour, path in nwp_map.items()}
     for nwp1, nwp2 in sorted(seen_pairs):
-        # Extract time info for bin naming (match Fortran's convert_grib_to_binary)
-        def _extract(fp):
-            basename = os.path.basename(fp)
-            m = re.search(r't(\d{2})z.*\.f(\d{3})', basename)
-            if m:
-                return m.group(1) + 'z', m.group(2)
-            return '00z', '000'
-
-        t1_cycle, t1_lead = _extract(nwp1)
-        t2_cycle, t2_lead = _extract(nwp2)
-        bin_name = f"gfs0p25_41L_{t1_cycle}_{t1_lead}_{t2_lead}_uv"
-        bin_path = os.path.join(nwp_path, date, bin_name)
-
-        if os.path.exists(bin_path):
-            print(f"  [NWP] Binary exists: {bin_name}")
-        else:
-            # Generate from first GRIB
-            grib2_to_binary(nwp1, bin_path)
-            # Append second GRIB (use a temp file, concatenate)
-            import tempfile
-            tmp_bin = tempfile.mktemp(suffix="_nwp2.bin")
-            try:
-                grib2_to_binary(nwp2, tmp_bin)
-                # Concatenate: first file + second file
-                with open(bin_path, "ab") as out_f:
-                    with open(tmp_bin, "rb") as in_f:
-                        out_f.write(in_f.read())
-                n_bytes = os.path.getsize(bin_path)
-                print(f"  [NWP] Generated: {bin_name} ({n_bytes/1024/1024:.0f} MB)")
-            finally:
-                if os.path.exists(tmp_bin):
-                    os.remove(tmp_bin)
-
-        bin_map[(nwp1, nwp2)] = bin_path
+        generated = []
+        for grib_path in (nwp1, nwp2):
+            valid_hour = valid_hour_by_grib.get(grib_path)
+            if valid_hour is None:
+                raise ValueError(f"Cannot determine NWP valid hour for {grib_path}")
+            generated.append(
+                generate_fortran_nwp_binary(grib_path, day_nwp_path, date, valid_hour)
+            )
+        bin_map[(nwp1, nwp2)] = tuple(generated)
 
     return bin_map
+
+
+def prepare_runtime_code_root(work_dir: str, project_root: str) -> str:
+    """Create a per-task code_root_path for Fortran runtime files.
+
+    The legacy Fortran reader looks for ``cal_mode.txt`` under
+    ``code_root_path``.  Keeping that file in the shared project root makes
+    parallel business/recali runs race with each other, so each task gets an
+    isolated runtime root with symlinks back to read-only resources.
+    """
+    runtime_root = os.path.join(work_dir, "code_root")
+    os.makedirs(runtime_root, exist_ok=True)
+
+    for name in ["coeff", "wgrib"]:
+        src = os.path.join(project_root, name)
+        dst = os.path.join(runtime_root, name)
+        if os.path.exists(src) and not os.path.exists(dst):
+            os.symlink(src, dst)
+
+    return runtime_root
 
 
 # ---------------------------------------------------------------------------
@@ -412,14 +410,16 @@ def run_single_scene(args: Tuple) -> Tuple[str, str, str, int, str]:
     log_path = os.path.join(work_dir, "run.log")
 
     try:
+        runtime_code_root = prepare_runtime_code_root(work_dir, code_root)
+
         # Set up calibration mode (returns resolved calibration name)
-        actual_cal = setup_calibration(calibration, work_dir, code_root, date)
+        actual_cal = setup_calibration(calibration, work_dir, runtime_code_root, date)
 
         # Generate .nml config in work_dir (use original cal name for file suffix)
         nml_content = generate_nml(
             date, time_slot, calibration,
             l1b_path, nwp_path, oisst_path, output_path,
-            code_root, nwp_grib1, nwp_grib2, oisst_file,
+            runtime_code_root, nwp_grib1, nwp_grib2, oisst_file,
         )
         nml_path = os.path.join(work_dir, f"config_{label}.nml")
         with open(nml_path, "w") as f:
@@ -575,9 +575,9 @@ Examples:
     # Step 3.5: Pre-generate NWP binary files (replaces wgrib/ shell scripts)
     # =====================================================================
     if not args.skip_nwp:
-        print("\n  STEP 3.5: NWP preprocessing (wgrib2 via Python)")
+        print("\n  STEP 3.5: NWP preprocessing (Python GRIB2 backend)")
         preprocess_nwp(args.nwp_path, args.date, time_slots, nwp_map)
-        print("  NWP preprocessing: DONE (wgrib shell scripts retired)")
+        print("  NWP preprocessing: DONE (legacy wgrib scripts retired)")
 
     # =====================================================================
     # Step 4: Build

@@ -120,6 +120,39 @@ def _read_dataset(file_path: str, dataset_path: str, dtype=np.float64) -> np.nda
         return f[dataset_path][:].astype(dtype)
 
 
+def _read_cpp_payload(file_path: str, method_name: str) -> Optional[Dict[str, np.ndarray]]:
+    """Read a business-level C++ IO payload when the backend provides it."""
+    mode = os.environ.get("FYLAT_IO_BACKEND", "auto").lower()
+    if mode == "h5py":
+        return None
+
+    backend = _load_cpp_backend()
+    if backend is None or not hasattr(backend, method_name):
+        if mode == "cpp":
+            raise RuntimeError(f"C++ IO backend does not provide {method_name}()")
+        return None
+
+    try:
+        payload = getattr(backend, method_name)(file_path)
+        return {key: np.asarray(value) for key, value in payload.items()}
+    except Exception:
+        if mode == "cpp":
+            raise
+    return None
+
+
+def _payload_or_dataset(
+    payload: Optional[Dict[str, np.ndarray]],
+    key: str,
+    file_path: str,
+    dataset_path: str,
+    dtype=np.float64,
+) -> np.ndarray:
+    if payload is not None and key in payload:
+        return np.asarray(payload[key], dtype=dtype)
+    return _read_dataset(file_path, dataset_path, dtype)
+
+
 def _planck_rad2tbb(rad: np.ndarray, band: int) -> np.ndarray:
     """Convert Planck radiance (mW/(m^2 sr cm^-1)) to brightness temperature (K).
 
@@ -160,9 +193,10 @@ def read_geo(geo_path: str) -> Dict[str, np.ndarray]:
     """
     with h5py.File(geo_path, "r") as f:
         geo = {}
+        payload = _read_cpp_payload(geo_path, "read_mersi_geo")
 
-        lat = _read_dataset(geo_path, "Geolocation/Latitude", np.float64)
-        lon = _read_dataset(geo_path, "Geolocation/Longitude", np.float64)
+        lat = _payload_or_dataset(payload, "lat", geo_path, "Geolocation/Latitude", np.float64)
+        lon = _payload_or_dataset(payload, "lon", geo_path, "Geolocation/Longitude", np.float64)
         geo["lat"] = lat
         geo["lon"] = lon
 
@@ -175,15 +209,17 @@ def read_geo(geo_path: str) -> Dict[str, np.ndarray]:
             slope = ds.attrs.get("Slope", 1.0)
             intercept = ds.attrs.get("Intercept", 0.0)
             fill_value = ds.attrs.get("FillValue", -32767)
-            raw = _read_dataset(geo_path, f"Geolocation/{hdf_key}", np.float64)
+            raw = _payload_or_dataset(
+                payload, f"{key}_raw", geo_path, f"Geolocation/{hdf_key}", np.float64)
             data = np.where(raw != fill_value, (raw + intercept) * slope, np.nan)
             geo[key] = data.astype(np.float32)
 
         # DEM
-        geo["dem"] = _read_dataset(geo_path, "Geolocation/DEM", np.float32)
+        geo["dem"] = _payload_or_dataset(payload, "dem", geo_path, "Geolocation/DEM", np.float32)
 
         # LandSeaMask (uint8 -> int32)
-        geo["lsm"] = _read_dataset(geo_path, "Geolocation/LandSeaMask", np.int32)
+        geo["lsm"] = _payload_or_dataset(
+            payload, "lsm", geo_path, "Geolocation/LandSeaMask", np.int32)
 
         # Compute relative azimuth: for FY-3D, rel_az = |180 - wrapped_diff|
         saa = geo["saa"]
@@ -217,16 +253,20 @@ def read_l1b(
         ir_cal_coef: (3, 6) IR calibration coefficients
     """
     with h5py.File(l1b_path, "r") as f:
+        payload = _read_cpp_payload(l1b_path, "read_mersi_l1_payload")
+
         # --- Read calibration coefficients ---
         # VIS_Cal_Coeff: (19, 3) for bands 1-19 (bands first, coeffs second)
-        vis_cal_raw = _read_dataset(l1b_path, "Calibration/VIS_Cal_Coeff", np.float64)
+        vis_cal_raw = _payload_or_dataset(
+            payload, "vis_cal_coeff", l1b_path, "Calibration/VIS_Cal_Coeff", np.float64)
         if vis_cal_raw.shape[0] == 19:  # (19, 3) -> (3, 19)
             vis_cal = vis_cal_raw.T
         else:
             vis_cal = vis_cal_raw
 
         # IR_Cal_Coeff: (6, 4, 200) for bands 20-25 (bands, coeffs, scans)
-        ir_cal_full = _read_dataset(l1b_path, "Calibration/IR_Cal_Coeff", np.float64)
+        ir_cal_full = _payload_or_dataset(
+            payload, "ir_cal_coeff", l1b_path, "Calibration/IR_Cal_Coeff", np.float64)
         ir_cal = np.zeros((6, 3), dtype=np.float64)
         for b in range(6):
             ir_cal[b, 0:3] = ir_cal_full[b, 0:3, 100]  # scan line 100
@@ -237,14 +277,18 @@ def read_l1b(
 
         # --- Read DN data ---
         # VIS bands 1-4: EV_250_Aggr.1KM_RefSB (4, nlines, npixels)
-        vis_250 = _read_dataset(l1b_path, "Data/EV_250_Aggr.1KM_RefSB", np.float64)
+        vis_250 = _payload_or_dataset(
+            payload, "ev_250_refsb", l1b_path, "Data/EV_250_Aggr.1KM_RefSB", np.float64)
         # VIS bands 5-19: EV_1KM_RefSB (15, nlines, npixels)
-        vis_1km = _read_dataset(l1b_path, "Data/EV_1KM_RefSB", np.float64)
+        vis_1km = _payload_or_dataset(
+            payload, "ev_1km_refsb", l1b_path, "Data/EV_1KM_RefSB", np.float64)
 
         # IR bands 20-23: EV_1KM_Emissive (4, nlines, npixels)
-        ir_1km = _read_dataset(l1b_path, "Data/EV_1KM_Emissive", np.float64)
+        ir_1km = _payload_or_dataset(
+            payload, "ev_1km_emissive", l1b_path, "Data/EV_1KM_Emissive", np.float64)
         # IR bands 24-25: EV_250_Aggr.1KM_Emissive (2, nlines, npixels)
-        ir_250 = _read_dataset(l1b_path, "Data/EV_250_Aggr.1KM_Emissive", np.float64)
+        ir_250 = _payload_or_dataset(
+            payload, "ev_250_emissive", l1b_path, "Data/EV_250_Aggr.1KM_Emissive", np.float64)
 
         # Read Slope/Intercept for IR bands (FY-3D applies scaling before DN->rad)
         ir_1km_slope = f["Data/EV_1KM_Emissive"].attrs.get("Slope", np.ones(4))

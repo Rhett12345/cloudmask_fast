@@ -64,8 +64,8 @@ from plot_utils import (
     plot_rgb, plot_rgb_placeholder, plot_clm, plot_diff,
     add_clm_colorbar, add_diff_colorbar,
     stats_caption_text, agreement_caption_text,
-    get_extent, subsample, save_figure,
-    CLM_LABEL_SHORT, choose_projection,
+    get_extent, subsample, save_figure, normalize_longitudes_for_plot,
+    CLM_LABEL_SHORT, choose_projection, set_geo_extent,
 )
 from io_mersi import (
     load_clm_hdf5, load_mersi_l1b, load_mersi_bt108,
@@ -118,7 +118,7 @@ def plot_ir_bt(
     import cartopy.crs as ccrs
 
     la = subsample(lat, step)
-    lo = subsample(lon, step)
+    lo = normalize_longitudes_for_plot(subsample(lon, step), lon)
     bt_s = subsample(bt, step)
 
     mask = np.isfinite(la) & np.isfinite(lo) & np.isfinite(bt_s)
@@ -227,7 +227,7 @@ def _build_figure3(
     """Render and save Figure 3.  Returns validation stats dict."""
     apply_nature_style()
 
-    projection, is_polar = choose_projection(mersi_lat)
+    projection, is_polar = choose_projection(mersi_lat, mersi_lon)
 
     myd35_resampled = myd35_data["clm_resampled"]
     dt_min = myd35_data.get("dt_diff_min", 0.0)
@@ -275,8 +275,7 @@ def _build_figure3(
         plot_rgb(ax, mersi_lat, mersi_lon, mersi_rgb, step=step)
     else:
         plot_rgb_placeholder(ax, mersi_lat, mersi_lon, recal_clm, step=step)
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
 
     # ── (b) IR 10.8 µm BT ───────────────────────────────────────────
@@ -292,16 +291,14 @@ def _build_figure3(
                 fontsize=8, color=MUTED_TEXT,
                 bbox=dict(boxstyle="round,pad=0.35,rounding_size=0.08",
                           fc="white", ec="#D8D8D8", lw=0.5, alpha=0.9))
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
 
     # ── (c) MYD35 CLM on native grid ────────────────────────────────
     ax = axs_geo[2]
     plot_clm(ax, myd35_data["lat"], myd35_data["lon"],
              myd35_data["clm_native"], step=step)
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
     add_clm_colorbar(fig, ax)
     dt_str = f"Δt = {dt_min:.1f} min" if dt_min else ""
@@ -313,8 +310,7 @@ def _build_figure3(
     ov_mask  = overlap_mask_on_mersi_grid(mersi_lat, mersi_lon, myd35_resampled)
     recal_ov = np.where(ov_mask, recal_clm, -1)
     plot_clm(ax, mersi_lat, mersi_lon, recal_ov, step=step)
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
     add_clm_colorbar(fig, ax)
     panel_caption(ax, stats_caption_text(recal_ov))
@@ -323,8 +319,7 @@ def _build_figure3(
     ax = axs_geo[4]
     stats_recal = _diff_panel_myd_minus_recal(
         ax, fig, mersi_lat, mersi_lon, recal_clm, myd35_resampled, step=step)
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
 
     # ── (f) Confusion matrix ─────────────────────────────────────────

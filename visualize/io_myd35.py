@@ -46,6 +46,11 @@ except ImportError:
     HAS_SCIPY = False
 
 
+
+from plot_utils import (
+    geo_bbox, geo_bbox_overlap_fraction, pixel_overlap_fraction_on_mersi,
+)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
@@ -58,7 +63,7 @@ MYD35_TO_CLM = {0: 0, 1: 1, 2: 2, 3: 3}
 DEFAULT_TIME_WINDOW_MIN = 15
 
 # Minimum fractional overlap to accept a granule (0–1)
-DEFAULT_MIN_OVERLAP = 0.05
+DEFAULT_MIN_OVERLAP = 0.50
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -257,30 +262,13 @@ def _match_shape(arr: np.ndarray, target: tuple) -> np.ndarray:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def compute_bbox(lat: np.ndarray, lon: np.ndarray) -> tuple | None:
-    """Return (lon_min, lon_max, lat_min, lat_max) for valid pixels."""
-    valid = np.isfinite(lat) & np.isfinite(lon)
-    if not valid.any():
-        return None
-    return (float(lon[valid].min()), float(lon[valid].max()),
-            float(lat[valid].min()), float(lat[valid].max()))
+    """Return dateline-safe bbox for valid pixels."""
+    return geo_bbox(lat, lon, valid_mask=None, step=1)
 
 
 def bbox_overlap_fraction(bb1: tuple, bb2: tuple) -> float:
-    """
-    Fractional overlap of two bounding boxes (lon_min,lon_max,lat_min,lat_max).
-    Returns fraction relative to the smaller box.
-    """
-    lon_min  = max(bb1[0], bb2[0])
-    lon_max  = min(bb1[1], bb2[1])
-    lat_min  = max(bb1[2], bb2[2])
-    lat_max  = min(bb1[3], bb2[3])
-    if lon_max <= lon_min or lat_max <= lat_min:
-        return 0.0
-    overlap_area = (lon_max - lon_min) * (lat_max - lat_min)
-    area1 = (bb1[1] - bb1[0]) * (bb1[3] - bb1[2])
-    area2 = (bb2[1] - bb2[0]) * (bb2[3] - bb2[2])
-    smaller = min(area1, area2)
-    return overlap_area / smaller if smaller > 0 else 0.0
+    """Fractional overlap of two dateline-safe bounding boxes."""
+    return geo_bbox_overlap_fraction(bb1, bb2)
 
 
 def filter_overlapping_granules(
@@ -418,6 +406,7 @@ def load_best_myd35_for_mersi(
     mersi_lon:      np.ndarray,
     mersi_dt:       datetime,
     search_dirs:    list[str] | str,
+    mersi_clm:      np.ndarray | None = None,
     time_window_min: int   = DEFAULT_TIME_WINDOW_MIN,
     min_overlap:    float  = DEFAULT_MIN_OVERLAP,
     radius_m:       float  = 1500.0,
@@ -447,23 +436,33 @@ def load_best_myd35_for_mersi(
     if not accepted:
         return None
 
-    # Take best (smallest Δt + largest overlap) — already sorted by Δt
-    meta, data = accepted[0]
+    # Resample candidates in time order, then require pixel-level overlap on
+    # the MERSI grid.  This is stricter and more relevant than bbox overlap.
+    for meta, data in accepted:
+        clm_resampled = resample_to_mersi_grid(
+            data["lat"], data["lon"], data["clm"],
+            mersi_lat, mersi_lon, radius_m)
+        pix_frac = pixel_overlap_fraction_on_mersi(
+            mersi_lat, mersi_lon, clm_resampled, mersi_clm=mersi_clm)
+        print(f"  [PIXEL OVERLAP] {os.path.basename(meta['myd35'])} "
+              f"valid MERSI coverage={pix_frac*100:.1f}%")
+        if pix_frac < min_overlap:
+            continue
 
-    print(f"[MYD35] Using granule: {os.path.basename(meta['myd35'])} "
-          f"(Δt={meta['dt_diff_min']:.1f} min)")
+        print(f"[MYD35] Using granule: {os.path.basename(meta['myd35'])} "
+              f"(Δt={meta['dt_diff_min']:.1f} min, "
+              f"pixel overlap={pix_frac*100:.1f}%)")
+        return {
+            "clm_native":     data["clm"],
+            "clm_resampled":  clm_resampled,
+            "lat":            data["lat"],
+            "lon":            data["lon"],
+            "dt":             data["dt"],
+            "dt_diff_min":    meta["dt_diff_min"],
+            "pixel_overlap":  pix_frac,
+            "source":         meta["myd35"],
+        }
 
-    # Resample onto MERSI grid
-    clm_resampled = resample_to_mersi_grid(
-        data["lat"], data["lon"], data["clm"],
-        mersi_lat, mersi_lon, radius_m)
-
-    return {
-        "clm_native":    data["clm"],
-        "clm_resampled": clm_resampled,
-        "lat":           data["lat"],
-        "lon":           data["lon"],
-        "dt":            data["dt"],
-        "dt_diff_min":   meta["dt_diff_min"],
-        "source":        meta["myd35"],
-    }
+    print(f"[MYD35] No granule passed pixel-overlap threshold "
+          f"({min_overlap*100:.0f}%).")
+    return None

@@ -5,6 +5,8 @@
 #include <pybind11/stl.h>
 
 #include <cstdint>
+#include <map>
+#include <string>
 #include <vector>
 
 namespace py = pybind11;
@@ -29,6 +31,26 @@ py::array_t<T> vector_to_array(std::vector<T>&& values,
         delete reinterpret_cast<std::vector<T>*>(ptr);
     });
     return py::array_t<T>(shape, heap_values->data(), owner);
+}
+
+py::dict float_dataset_map_to_dict(
+    std::map<std::string, fylat::io::Float32Dataset>&& datasets) {
+    py::dict result;
+    for (auto& [name, dataset] : datasets) {
+        result[py::str(name)] =
+            vector_to_array<float>(std::move(dataset.values), dataset.shape);
+    }
+    return result;
+}
+
+py::dict uint8_dataset_map_to_dict(
+    std::map<std::string, fylat::io::Uint8Dataset>&& datasets) {
+    py::dict result;
+    for (auto& [name, dataset] : datasets) {
+        result[py::str(name)] =
+            vector_to_array<std::uint8_t>(std::move(dataset.values), dataset.shape);
+    }
+    return result;
 }
 
 }  // namespace
@@ -70,4 +92,19 @@ PYBIND11_MODULE(fylat_py, m) {
                                        overwrite);
     }, py::arg("file_path"), py::arg("dataset_path"), py::arg("array"),
        py::arg("overwrite") = true);
+
+    m.def("read_mersi_geo", [](const std::string& file_path) {
+        py::dict result = float_dataset_map_to_dict(
+            fylat::io::read_mersi_geo_float_fields(file_path));
+        py::dict byte_fields = uint8_dataset_map_to_dict(
+            fylat::io::read_mersi_geo_uint8_fields(file_path));
+        for (auto item : byte_fields) {
+            result[item.first] = item.second;
+        }
+        return result;
+    }, py::arg("file_path"));
+
+    m.def("read_mersi_l1_payload", [](const std::string& file_path) {
+        return float_dataset_map_to_dict(fylat::io::read_mersi_l1_payload(file_path));
+    }, py::arg("file_path"));
 }

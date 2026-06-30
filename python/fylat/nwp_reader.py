@@ -291,39 +291,17 @@ def grib2_to_binary(grib_path: str, bin_path: str, backend: Optional[str] = None
         raise RuntimeError(f"No expected NWP fields matched in {grib_path}")
 
 
-def generate_nwp_binary(nwp_grib1: str, nwp_grib2: str, nwp_path: str) -> str:
-    """Generate the combined two-time NWP binary consumed by Fortran."""
+def fortran_nwp_binary_name(date: str, valid_hour: int) -> str:
+    """Return the legacy single-time binary name expected by Fortran."""
+    return f"gfs0p25_41L_{date}_{valid_hour:02d}_00"
 
-    def _extract_info(fp: str) -> Tuple[str, str]:
-        basename = os.path.basename(fp)
-        m = re.search(r"t(\d{2})z.*\.f(\d{3})", basename)
-        if m:
-            return m.group(1) + "z", m.group(2)
-        return "00z", "000"
 
-    t1_cycle, t1_lead = _extract_info(nwp_grib1)
-    _, t2_lead = _extract_info(nwp_grib2)
-
-    bin_name = f"gfs0p25_41L_{t1_cycle}_{t1_lead}_{t2_lead}_uv"
-    bin_path = os.path.join(nwp_path, bin_name)
-
+def generate_fortran_nwp_binary(grib_path: str, nwp_path: str,
+                                date: str, valid_hour: int) -> str:
+    """Generate one legacy Fortran-compatible NWP binary for a valid hour."""
+    bin_path = os.path.join(nwp_path, fortran_nwp_binary_name(date, valid_hour))
     if os.path.exists(bin_path):
         print(f"  [NWP] Binary exists, skipping: {bin_path}")
         return bin_path
-
-    grib2_to_binary(nwp_grib1, bin_path)
-    with tempfile.NamedTemporaryFile(suffix="_nwp2.bin", delete=False) as tmp:
-        tmp_bin = tmp.name
-    try:
-        grib2_to_binary(nwp_grib2, tmp_bin)
-        with open(bin_path, "ab") as out_f, open(tmp_bin, "rb") as in_f:
-            shutil.copyfileobj(in_f, out_f)
-    finally:
-        if os.path.exists(tmp_bin):
-            os.remove(tmp_bin)
-
-    actual_size = os.path.getsize(bin_path)
-    n_fields = actual_size // _FIELD_BYTES if _FIELD_BYTES else 0
-    print(f"  [NWP] Combined binary: {os.path.basename(bin_path)} "
-          f"({n_fields} fields, {actual_size/1024/1024:.0f} MB)")
+    grib2_to_binary(grib_path, bin_path)
     return bin_path

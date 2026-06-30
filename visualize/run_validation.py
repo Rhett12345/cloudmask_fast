@@ -36,6 +36,16 @@ stats = run_single_orbit(
     myd35_dirs   = ["/data/myd35/"],
     output_dir   = "./output",
 )
+
+about skip figure
+
+python run_validation.py \
+  --recal xxx_recal.h5 \
+  --onboard xxx.h5 \
+  --myd35_dir /path/to/MYD35 \
+  --output_dir ./output \
+  --skip_fig1 \
+  --skip_fig2
 """
 
 from __future__ import annotations
@@ -68,7 +78,7 @@ def run_single_orbit(
     mersi_root:      str       = "/data/Data_yuq/mersi",
     step:            int       = 4,
     time_window_min: int       = 15,
-    min_overlap:     float     = 0.05,
+    min_overlap:     float     = 0.50,
     skip_fig1:       bool      = False,
     skip_fig2:       bool      = False,
     skip_fig3:       bool      = False,
@@ -155,6 +165,7 @@ def run_single_orbit(
                 mersi_lon       = lon,
                 mersi_dt        = mersi_dt,
                 search_dirs     = myd35_dirs,
+                mersi_clm       = recal_clm,
                 time_window_min = time_window_min,
                 min_overlap     = min_overlap,
             )
@@ -257,7 +268,7 @@ def run_batch(
     mersi_root:      str   = "/data/Data_yuq/mersi",
     step:            int   = 4,
     time_window_min: int   = 15,
-    min_overlap:     float = 0.05,
+    min_overlap:     float = 0.50,
     overwrite:       bool  = False,
 ) -> list[dict]:
     """Run the full pipeline for all orbits in data_dir."""
@@ -342,7 +353,7 @@ Examples:
                         help="Subsampling step (4 = every 4th pixel)")
     parser.add_argument("--time_window", type=int,   default=15,
                         help="MYD35 temporal search window in minutes (default 15)")
-    parser.add_argument("--min_overlap", type=float, default=0.05,
+    parser.add_argument("--min_overlap", type=float, default=0.50,
                         help="Minimum spatial overlap fraction (default 0.05)")
     parser.add_argument("--overwrite",   action="store_true",
                         help="Overwrite existing output files")

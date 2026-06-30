@@ -54,7 +54,7 @@ from plot_utils import (
     plot_rgb, plot_rgb_placeholder, plot_clm, plot_diff,
     add_clm_colorbar, add_diff_colorbar,
     stats_caption_text, agreement_caption_text,
-    get_extent, save_figure, choose_projection,
+    get_extent, save_figure, choose_projection, set_geo_extent,
 )
 from io_mersi import (
     load_clm_hdf5, load_mersi_l1b, find_l1b_for_clm,
@@ -79,7 +79,7 @@ def _build_figure1(
     """Render and save the 4-panel Figure 1."""
     apply_nature_style()
 
-    projection, is_polar = choose_projection(lat)
+    projection, is_polar = choose_projection(lat, lon)
     extent = get_extent(lat, lon, recal_clm, step=step)
 
     fig_w = PANEL_WIDTH_IN * 2 + 1.35
@@ -107,15 +107,13 @@ def _build_figure1(
         plot_rgb(ax, lat, lon, rgb, step=step)
     else:
         plot_rgb_placeholder(ax, lat, lon, recal_clm, step=step)
-    if extent:
-        ax.set_extent(extent)
+    set_geo_extent(ax, extent)
     add_gridlines(ax)
 
     # ── (b) Recalibration CLM ───────────────────────────────────────
     ax = axs[1]
     plot_clm(ax, lat, lon, recal_clm, step=step)
-    if extent:
-        ax.set_extent(extent)
+    set_geo_extent(ax, extent)
     add_gridlines(ax)
     add_clm_colorbar(fig, ax)
     panel_caption(ax, stats_caption_text(recal_clm))
@@ -123,8 +121,7 @@ def _build_figure1(
     # ── (c) Onboard CLM ─────────────────────────────────────────────
     ax = axs[2]
     plot_clm(ax, lat, lon, onboard_clm, step=step)
-    if extent:
-        ax.set_extent(extent)
+    set_geo_extent(ax, extent)
     add_gridlines(ax)
     add_clm_colorbar(fig, ax)
     panel_caption(ax, stats_caption_text(onboard_clm))
@@ -132,8 +129,7 @@ def _build_figure1(
     # ── (d) Agreement map  (Recal − Onboard) ────────────────────────
     ax = axs[3]
     sm, mask, diff = plot_diff(ax, lat, lon, recal_clm, onboard_clm, step=step)
-    if extent:
-        ax.set_extent(extent)
+    set_geo_extent(ax, extent)
     add_gridlines(ax)
     add_diff_colorbar(fig, ax, sm, label="Recal − Onboard (class)")
     panel_caption(ax, agreement_caption_text(recal_clm, onboard_clm))

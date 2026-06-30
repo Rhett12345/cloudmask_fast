@@ -2,8 +2,11 @@
 
 #include <H5Cpp.h>
 
+#include <map>
 #include <numeric>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 namespace fylat::io {
 namespace {
@@ -56,6 +59,20 @@ std::vector<T> read_dataset(const std::string& file_path,
         *shape_out = shape;
     }
     return values;
+}
+
+Float32Dataset read_float32_named(const std::string& file_path,
+                                  const std::string& dataset_path) {
+    Float32Dataset result;
+    result.values = read_float32_dataset(file_path, dataset_path, &result.shape);
+    return result;
+}
+
+Uint8Dataset read_uint8_named(const std::string& file_path,
+                              const std::string& dataset_path) {
+    Uint8Dataset result;
+    result.values = read_uint8_dataset(file_path, dataset_path, &result.shape);
+    return result;
 }
 
 }  // namespace
@@ -116,6 +133,50 @@ void write_uint8_dataset(const std::string& file_path,
     H5::DataSet dataset = file.createDataSet(dataset_path, H5::PredType::NATIVE_UINT8,
                                              space);
     dataset.write(values.data(), H5::PredType::NATIVE_UINT8);
+}
+
+std::map<std::string, Float32Dataset>
+read_mersi_geo_float_fields(const std::string& file_path) {
+    const std::pair<const char*, const char*> fields[] = {
+        {"lat", "Geolocation/Latitude"},
+        {"lon", "Geolocation/Longitude"},
+        {"sza_raw", "Geolocation/SolarZenith"},
+        {"saa_raw", "Geolocation/SolarAzimuth"},
+        {"vza_raw", "Geolocation/SensorZenith"},
+        {"vaa_raw", "Geolocation/SensorAzimuth"},
+        {"dem", "Geolocation/DEM"},
+    };
+
+    std::map<std::string, Float32Dataset> result;
+    for (const auto& [name, path] : fields) {
+        result.emplace(name, read_float32_named(file_path, path));
+    }
+    return result;
+}
+
+std::map<std::string, Uint8Dataset>
+read_mersi_geo_uint8_fields(const std::string& file_path) {
+    std::map<std::string, Uint8Dataset> result;
+    result.emplace("lsm", read_uint8_named(file_path, "Geolocation/LandSeaMask"));
+    return result;
+}
+
+std::map<std::string, Float32Dataset>
+read_mersi_l1_payload(const std::string& file_path) {
+    const std::pair<const char*, const char*> fields[] = {
+        {"vis_cal_coeff", "Calibration/VIS_Cal_Coeff"},
+        {"ir_cal_coeff", "Calibration/IR_Cal_Coeff"},
+        {"ev_250_refsb", "Data/EV_250_Aggr.1KM_RefSB"},
+        {"ev_1km_refsb", "Data/EV_1KM_RefSB"},
+        {"ev_1km_emissive", "Data/EV_1KM_Emissive"},
+        {"ev_250_emissive", "Data/EV_250_Aggr.1KM_Emissive"},
+    };
+
+    std::map<std::string, Float32Dataset> result;
+    for (const auto& [name, path] : fields) {
+        result.emplace(name, read_float32_named(file_path, path));
+    }
+    return result;
 }
 
 }  // namespace fylat::io

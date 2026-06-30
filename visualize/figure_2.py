@@ -57,8 +57,8 @@ from plot_utils import (
     plot_rgb, plot_rgb_placeholder, plot_clm, plot_diff,
     add_clm_colorbar, add_diff_colorbar,
     stats_caption_text, agreement_caption_text,
-    get_extent, subsample, save_figure,
-    CLM_LABEL_SHORT, choose_projection,
+    get_extent, subsample, save_figure, geo_overlap_extent,
+    CLM_LABEL_SHORT, choose_projection, set_geo_extent,
 )
 from io_mersi import print_clm_distribution
 
@@ -77,29 +77,11 @@ def compute_overlap_extent(
     step:       int   = 4,
     pad:        float = 0.5,
 ) -> list | None:
-    """Bounding-box intersection of two swath footprints."""
-    def valid_bbox(lat, lon, clm, step):
-        la = subsample(lat, step)
-        lo = subsample(lon, step)
-        cl = subsample(clm, step)
-        m  = np.isfinite(la) & np.isfinite(lo) & (cl >= 0)
-        if not m.any():
-            return None
-        return lo[m].min(), lo[m].max(), la[m].min(), la[m].max()
-
-    bb1 = valid_bbox(mersi_lat, mersi_lon, mersi_clm, step)
-    bb2 = valid_bbox(myd35_lat, myd35_lon, myd35_clm, step)
-    if bb1 is None or bb2 is None:
-        return None
-
-    lon_min = max(bb1[0], bb2[0]) - pad
-    lon_max = min(bb1[1], bb2[1]) + pad
-    lat_min = max(bb1[2], bb2[2]) - pad
-    lat_max = min(bb1[3], bb2[3]) + pad
-
-    if lon_max <= lon_min or lat_max <= lat_min:
-        return None
-    return [float(lon_min), float(lon_max), float(lat_min), float(lat_max)]
+    """Dateline-safe bounding-box intersection of two swath footprints."""
+    return geo_overlap_extent(
+        mersi_lat, mersi_lon, (mersi_clm >= 0),
+        myd35_lat, myd35_lon, (myd35_clm >= 0),
+        step=step, pad=pad)
 
 
 def overlap_mask_on_mersi_grid(
@@ -322,7 +304,7 @@ def _build_figure2(
     """Build and save Figure 2.  Returns dict of validation stats."""
     apply_nature_style()
 
-    projection, is_polar = choose_projection(mersi_lat)
+    projection, is_polar = choose_projection(mersi_lat, mersi_lon)
 
     myd35_resampled = myd35_data["clm_resampled"]
     myd_dt = myd35_data.get("dt")
@@ -365,15 +347,13 @@ def _build_figure2(
         plot_rgb(ax, mersi_lat, mersi_lon, mersi_rgb, step=step)
     else:
         plot_rgb_placeholder(ax, mersi_lat, mersi_lon, recal_clm, step=step)
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
 
     # ── (b) MYD35 CLM on native grid ────────────────────────────────
     ax = axs_geo[1]
     _plot_myd35_clm(ax, myd35_data, step=step)
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
     add_clm_colorbar(fig, ax)
     myd_dt_str = f"Δt = {dt_min:.1f} min" if myd_dt is not None else ""
@@ -385,8 +365,7 @@ def _build_figure2(
     ov_mask  = overlap_mask_on_mersi_grid(mersi_lat, mersi_lon, myd35_resampled)
     recal_ov = np.where(ov_mask, recal_clm, -1)
     plot_clm(ax, mersi_lat, mersi_lon, recal_ov, step=step)
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
     add_clm_colorbar(fig, ax)
     panel_caption(ax, stats_caption_text(recal_ov))
@@ -396,8 +375,7 @@ def _build_figure2(
     stats_recal = _validation_diff_panel(
         ax, fig, mersi_lat, mersi_lon, recal_clm, myd35_resampled,
         step=step, title_suffix=" recal")
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
 
     # ── (e) Onboard − MYD35 diff ─────────────────────────────────────
@@ -405,8 +383,7 @@ def _build_figure2(
     stats_onboard = _validation_diff_panel(
         ax, fig, mersi_lat, mersi_lon, onboard_clm, myd35_resampled,
         step=step, title_suffix=" onboard")
-    if overlap_extent:
-        ax.set_extent(overlap_extent)
+    set_geo_extent(ax, overlap_extent)
     add_gridlines(ax)
 
     # ── (f) Confusion matrices ───────────────────────────────────────
