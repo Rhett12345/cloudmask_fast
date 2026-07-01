@@ -14,7 +14,7 @@ Developed by the **Min Min team at Sun Yat-sen University (中山大学)**.
 - Linux x86_64
 - Intel Fortran (`ifort`) + Intel C (`icc`)
 - HDF5 / HDF4 libraries
-- wgrib2
+- ecCodes for default GRIB2 decoding; wgrib2 is retained as an explicit fallback
 - Python 3, conda environment `cloudmask`
 
 ### One-Command Run
@@ -65,7 +65,7 @@ FY-3D MERSI-II L1 HDF5 ──┬── NWP (GRIB2) interpolation
 
 1. Read namelist config (`.nml`) — sensor ID, NWP source, algorithm toggles, I/O paths
 2. Load L1 data — 25 MERSI-II channels (19 reflective + 6 IR bands), geometry
-3. Load NWP (GRIB2 → binary via wgrib2) — interpolate to 101 pressure levels, temporally between forecast steps
+3. Load NWP (GRIB2 → Fortran-compatible binary via Python ecCodes by default, wgrib2 fallback optional) — interpolate to 101 pressure levels, temporally between forecast steps
 4. Load ancillary data — snow/ice mask (NISE), ecosystem (IGBP), OISST, emissivity/albedo → PFAAST RTM for clear-sky BTs
 5. Run cloud mask — per-pixel decision tree, 3×3 spatial tests, thin cirrus/shadow/sun-glint checks, QA bit packing
 6. Output L2 HDF5 — cloud mask (1 km, 6-byte bit array + QA)
@@ -84,7 +84,7 @@ FY-3D MERSI-II L1 HDF5 ──┬── NWP (GRIB2) interpolation
 │   ├── sea_surface_temperature/ # SST (not built by default)
 │   └── *.f90, *.f, *.c         # Support: IO, RTM, numerics, platform
 ├── coeff/                       # Coefficient files (thresholds, RTM LUTs, ancillary)
-├── wgrib/                       # NWP GRIB2 → binary conversion scripts
+├── wgrib/                       # Optional legacy NWP GRIB2 fallback scripts
 ├── python/fylat/                # Python config & calibration management
 │   ├── config.py                # YAML → .nml namelist generation
 │   └── calibration.py           # Recalibration coefficient discovery & loading

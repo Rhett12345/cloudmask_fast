@@ -14,7 +14,7 @@
 - Linux x86_64
 - Intel Fortran (`ifort`) + Intel C (`icc`)
 - HDF5 / HDF4 库
-- wgrib2
+- ecCodes 默认解码 GRIB2；wgrib2 仅作为显式 fallback
 - Python 3, conda 虚拟环境 `cloudmask`
 
 ### 一键运行
@@ -65,7 +65,7 @@ FY-3D MERSI-II L1 HDF5 ──┬── NWP (GRIB2) 插值
 
 1. 读取 namelist 配置 (`.nml`) — 传感器 ID、NWP 数据源、算法开关、I/O 路径
 2. 读取 L1 数据 — 25 个 MERSI-II 通道（19 可见光/近红外 + 6 红外）、几何信息
-3. 读取 NWP 数据（GRIB2 → 二进制，通过 wgrib2）— 空间插值到 101 层气压，时间插值于两预报时次间
+3. 读取 NWP 数据（默认通过 Python ecCodes 将 GRIB2 预生成 Fortran 兼容二进制；wgrib2 仅作 fallback）— 空间插值到 101 层气压，时间插值于两预报时次间
 4. 读取辅助数据 — 雪/冰掩膜 (NISE)、生态系统 (IGBP)、OISST 海温、发射率/反照率 → PFAAST 辐射传输模式计算晴空亮温
 5. 运行云掩膜算法 — 逐像素决策树，3×3 空间均匀性检测，薄卷云/阴影/太阳耀斑检测，QA 位打包
 6. 输出 L2 HDF5 — 云掩膜（1 km，6 字节比特阵列 + QA）
@@ -84,7 +84,7 @@ FY-3D MERSI-II L1 HDF5 ──┬── NWP (GRIB2) 插值
 │   ├── sea_surface_temperature/ # 海表温度（默认未启用）
 │   └── *.f90, *.f, *.c         # 支撑模块：IO、RTM、数值计算、平台配置
 ├── coeff/                       # 辅助系数文件（阈值表、RTM 查找表、辅助数据）
-├── wgrib/                       # NWP GRIB2 → 二进制转换脚本
+├── wgrib/                       # 可选旧 NWP GRIB2 fallback 脚本
 ├── python/fylat/                # Python 配置与定标管理
 │   ├── config.py                # YAML → .nml namelist 生成
 │   └── calibration.py           # 再定标系数发现与加载

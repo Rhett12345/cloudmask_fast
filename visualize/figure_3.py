@@ -62,6 +62,7 @@ from plot_utils import (
     make_geo_ax_with_caption, add_gridlines, panel_label, panel_title,
     panel_caption,
     plot_rgb, plot_rgb_placeholder, plot_clm, plot_diff,
+    compute_swath_border, draw_swath_border,
     add_clm_colorbar, add_diff_colorbar,
     stats_caption_text, agreement_caption_text,
     get_extent, subsample, save_figure, normalize_longitudes_for_plot,
@@ -75,7 +76,6 @@ from io_myd35 import load_best_myd35_for_mersi
 
 # Reuse the validation helpers from figure_2
 from figure_2 import (
-    compute_overlap_extent,
     overlap_mask_on_mersi_grid,
     compute_validation_stats,
     _draw_confusion_panel,
@@ -185,16 +185,30 @@ def _diff_panel_myd_minus_recal(
     recal_clm:       np.ndarray,
     myd35_resampled: np.ndarray,
     step: int = 4,
+    overlap_mask:    np.ndarray | None = None,
 ) -> dict:
     """
     Plot (MYD35_resampled − recal_clm) on MERSI grid, restricted to overlap.
 
     Positive values → MYD35 sees more cloud than MERSI recal.
+    Only pixels valid in BOTH recal_clm and myd35_resampled are rendered —
+    everything else is left blank, so the diff panel never shows data that
+    only one of the two sensors actually covers.
     Returns validation stats dict.
+
+    Parameters
+    ----------
+    overlap_mask : (H, W) bool or None
+        Precomputed strict per-pixel overlap (both sensors valid). If
+        None, it is derived from figure_2's bbox-based
+        overlap_mask_on_mersi_grid() intersected with per-pixel validity.
     """
-    ov_mask  = overlap_mask_on_mersi_grid(mersi_lat, mersi_lon, myd35_resampled)
-    myd_ov   = np.where(ov_mask, myd35_resampled, -1)
-    recal_ov = np.where(ov_mask, recal_clm,       -1)
+    if overlap_mask is None:
+        ov_mask = overlap_mask_on_mersi_grid(mersi_lat, mersi_lon, myd35_resampled)
+        overlap_mask = ov_mask & (recal_clm >= 0) & (myd35_resampled >= 0)
+
+    myd_ov   = np.where(overlap_mask, myd35_resampled, -1)
+    recal_ov = np.where(overlap_mask, recal_clm,        -1)
 
     # plot_diff(a, b) renders (a − b); we want MYD35 − recal so pass myd first
     sm, _, _ = plot_diff(ax, mersi_lat, mersi_lon, myd_ov, recal_ov, step=step)
@@ -232,13 +246,27 @@ def _build_figure3(
     myd35_resampled = myd35_data["clm_resampled"]
     dt_min = myd35_data.get("dt_diff_min", 0.0)
 
-    # Extent: intersection of MERSI and MYD35 footprints
-    overlap_extent = compute_overlap_extent(
-        mersi_lat, mersi_lon, recal_clm,
-        myd35_data["lat"], myd35_data["lon"], myd35_data["clm_native"],
-        step=step)
-    if overlap_extent is None:
-        overlap_extent = get_extent(mersi_lat, mersi_lon, recal_clm, step=step)
+    # Strict per-pixel overlap on the MERSI grid: both recal_clm AND the
+    # resampled MYD35 must be valid there. This single mask drives (i) the
+    # data shown in panel (d), (ii) the data shown in the diff panel (e),
+    # and (iii) the dashed overlap frame drawn on panels (c) and (d).
+    overlap_full = (
+        np.isfinite(mersi_lat) & np.isfinite(mersi_lon) &
+        (recal_clm >= 0) & (myd35_resampled >= 0)
+    )
+    overlap_border = compute_swath_border(mersi_lat, mersi_lon, overlap_full)
+
+    # Two extents: each sensor's OWN full footprint, not the (small)
+    # intersection between them. This is deliberate — panels (a)/(b)/(d)/(e)
+    # are MERSI products and should show the complete MERSI observation for
+    # this orbit; panel (c) is the MYD35 "truth" granule and should show its
+    # own full extent. The dashed frame added below then marks, within that
+    # full picture, exactly which part is shared with the other sensor.
+    mersi_extent = get_extent(mersi_lat, mersi_lon, recal_clm, step=step)
+    myd35_extent = get_extent(myd35_data["lat"], myd35_data["lon"],
+                               myd35_data["clm_native"], step=step)
+    if myd35_extent is None:
+        myd35_extent = mersi_extent
 
     # ── Canvas ───────────────────────────────────────────────────────
     fig_w = PANEL_WIDTH_IN * 3 + 1.90
@@ -275,7 +303,7 @@ def _build_figure3(
         plot_rgb(ax, mersi_lat, mersi_lon, mersi_rgb, step=step)
     else:
         plot_rgb_placeholder(ax, mersi_lat, mersi_lon, recal_clm, step=step)
-    set_geo_extent(ax, overlap_extent)
+    set_geo_extent(ax, mersi_extent)
     add_gridlines(ax)
 
     # ── (b) IR 10.8 µm BT ───────────────────────────────────────────
@@ -291,15 +319,17 @@ def _build_figure3(
                 fontsize=8, color=MUTED_TEXT,
                 bbox=dict(boxstyle="round,pad=0.35,rounding_size=0.08",
                           fc="white", ec="#D8D8D8", lw=0.5, alpha=0.9))
-    set_geo_extent(ax, overlap_extent)
+    set_geo_extent(ax, mersi_extent)
     add_gridlines(ax)
 
     # ── (c) MYD35 CLM on native grid ────────────────────────────────
     ax = axs_geo[2]
     plot_clm(ax, myd35_data["lat"], myd35_data["lon"],
              myd35_data["clm_native"], step=step)
-    set_geo_extent(ax, overlap_extent)
+    set_geo_extent(ax, myd35_extent)
     add_gridlines(ax)
+    if overlap_border is not None:
+        draw_swath_border(ax, *overlap_border)
     add_clm_colorbar(fig, ax)
     dt_str = f"Δt = {dt_min:.1f} min" if dt_min else ""
     panel_caption(ax, stats_caption_text(myd35_data["clm_native"]) +
@@ -307,19 +337,21 @@ def _build_figure3(
 
     # ── (d) MERSI recal CLM (overlap region) ────────────────────────
     ax = axs_geo[3]
-    ov_mask  = overlap_mask_on_mersi_grid(mersi_lat, mersi_lon, myd35_resampled)
-    recal_ov = np.where(ov_mask, recal_clm, -1)
+    recal_ov = np.where(overlap_full, recal_clm, -1)
     plot_clm(ax, mersi_lat, mersi_lon, recal_ov, step=step)
-    set_geo_extent(ax, overlap_extent)
+    set_geo_extent(ax, mersi_extent)
     add_gridlines(ax)
+    if overlap_border is not None:
+        draw_swath_border(ax, *overlap_border)
     add_clm_colorbar(fig, ax)
     panel_caption(ax, stats_caption_text(recal_ov))
 
     # ── (e) MYD35 − Recal diff (overlap only) ───────────────────────
     ax = axs_geo[4]
     stats_recal = _diff_panel_myd_minus_recal(
-        ax, fig, mersi_lat, mersi_lon, recal_clm, myd35_resampled, step=step)
-    set_geo_extent(ax, overlap_extent)
+        ax, fig, mersi_lat, mersi_lon, recal_clm, myd35_resampled,
+        step=step, overlap_mask=overlap_full)
+    set_geo_extent(ax, mersi_extent)
     add_gridlines(ax)
 
     # ── (f) Confusion matrix ─────────────────────────────────────────
@@ -342,6 +374,13 @@ def _build_figure3(
         f"centre {lat_c:.1f}°N {lon_c:.1f}°E"
         + (f"\nMYD35: {myd_basename}" if myd_basename else ""),
         fontsize=10.1, fontweight="semibold", color=TEXT_COLOR, y=0.975)
+
+    if overlap_border is not None:
+        fig.text(0.045, 0.012,
+                 "Dashed frame in (c) and (d): pixel-level overlap between "
+                 "MERSI recal CLM and MYD35 — the same region used in the "
+                 "diff panel (e).",
+                 fontsize=6.8, color=MUTED_TEXT, ha="left", va="bottom")
 
     save_figure(fig, output)
     return {"recal": stats_recal}

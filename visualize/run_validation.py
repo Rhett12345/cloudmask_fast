@@ -270,11 +270,18 @@ def run_batch(
     time_window_min: int   = 15,
     min_overlap:     float = 0.50,
     overwrite:       bool  = False,
+    skip_fig1:       bool  = False,
+    skip_fig2:       bool  = False,
+    skip_fig3:       bool  = False,
 ) -> list[dict]:
     """Run the full pipeline for all orbits in data_dir."""
     pairs = find_orbit_pairs(data_dir)
     if not pairs:
         print(f"[ERROR] No CLM pairs found in {data_dir}")
+        return []
+
+    if skip_fig1 and skip_fig2 and skip_fig3:
+        print("[WARN] --skip_fig1, --skip_fig2 and --skip_fig3 are all set — nothing to generate.")
         return []
 
     print(f"[BATCH] Found {len(pairs)} orbit pair(s)")
@@ -287,8 +294,15 @@ def run_batch(
         fig2_out  = out_dir / f"fig2_{orbit_tag}.png"
         fig3_out  = out_dir / f"fig3_{orbit_tag}.png"
 
-        if not overwrite and fig1_out.exists() and fig2_out.exists() and fig3_out.exists():
-            print(f"[SKIP] {orbit_tag} (outputs exist)")
+        # A figure is skipped if the user explicitly asked to skip it via
+        # --skip_figN, OR it already exists on disk and --overwrite wasn't
+        # passed. Per-orbit "nothing to do" check must respect both.
+        do_skip_fig1 = skip_fig1 or (not overwrite and fig1_out.exists())
+        do_skip_fig2 = skip_fig2 or (not overwrite and fig2_out.exists())
+        do_skip_fig3 = skip_fig3 or (not overwrite and fig3_out.exists())
+
+        if do_skip_fig1 and do_skip_fig2 and do_skip_fig3:
+            print(f"[SKIP] {orbit_tag} (nothing left to generate)")
             continue
 
         try:
@@ -301,9 +315,9 @@ def run_batch(
                 step            = step,
                 time_window_min = time_window_min,
                 min_overlap     = min_overlap,
-                skip_fig1       = (not overwrite and fig1_out.exists()),
-                skip_fig2       = (not overwrite and fig2_out.exists()),
-                skip_fig3       = (not overwrite and fig3_out.exists()),
+                skip_fig1       = do_skip_fig1,
+                skip_fig2       = do_skip_fig2,
+                skip_fig3       = do_skip_fig3,
             )
             all_results.append(result)
         except Exception as e:
@@ -373,6 +387,9 @@ Examples:
             time_window_min = args.time_window,
             min_overlap     = args.min_overlap,
             overwrite       = args.overwrite,
+            skip_fig1       = args.skip_fig1,
+            skip_fig2       = args.skip_fig2,
+            skip_fig3       = args.skip_fig3,
         )
     else:
         if not args.recal:

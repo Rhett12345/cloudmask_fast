@@ -46,6 +46,8 @@ plot_rgb(ax, lat, lon, rgb, step)
 plot_rgb_placeholder(ax, lat, lon, clm, step)
 plot_clm(ax, lat, lon, clm, step)
 plot_diff(ax, lat, lon, clm_a, clm_b, step)
+compute_swath_border(lat, lon, mask) -> (lons, lats) | None
+draw_swath_border(ax, lons, lats, ...)
 add_clm_colorbar(fig, ax, ...)
 add_diff_colorbar(fig, ax, sm, label)
 get_extent(lat, lon, clm, step, pad)
@@ -689,6 +691,79 @@ def plot_diff(
     sm = plt.cm.ScalarMappable(cmap=d_cmap, norm=d_norm)
     sm.set_array([])
     return sm, mask, diff
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cross-sensor overlap frame (dashed border marking where two swaths coincide)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_swath_border(
+    lat: np.ndarray,
+    lon: np.ndarray,
+    mask: np.ndarray,
+    min_pixels: int = 25,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """
+    Trace the index-space bounding-box border of `mask` through the
+    underlying (lat, lon) grid and return it as a closed geographic
+    polyline.
+
+    Because satellite swaths are indexed by (scan, pixel), the bounding
+    box in index-space maps to a gently curved quadrilateral in lon/lat
+    space when plotted — i.e. exactly the kind of "frame" a satellite
+    footprint boundary actually looks like on a map, as opposed to a
+    straight lon/lat rectangle.
+
+    Parameters
+    ----------
+    lat, lon : (H, W) arrays sharing `mask`'s grid.
+    mask : (H, W) bool — the region whose extent should be framed
+        (e.g. the per-pixel validity intersection of two sensors).
+    min_pixels : minimum True pixels required to draw a frame; guards
+        against a near-empty mask producing a degenerate/noisy box.
+
+    Returns
+    -------
+    (lons, lats) : 1-D arrays tracing a closed loop, or None if `mask`
+    has too few valid pixels to be meaningful.
+    """
+    ys, xs = np.where(mask)
+    if ys.size < min_pixels:
+        return None
+
+    r0, r1 = int(ys.min()), int(ys.max())
+    c0, c1 = int(xs.min()), int(xs.max())
+    rows = np.arange(r0, r1 + 1)
+    cols = np.arange(c0, c1 + 1)
+
+    left_lat,   left_lon   = lat[rows, c0],       lon[rows, c0]
+    bottom_lat, bottom_lon = lat[r1, cols],        lon[r1, cols]
+    right_lat,  right_lon  = lat[rows[::-1], c1],  lon[rows[::-1], c1]
+    top_lat,    top_lon    = lat[r0, cols[::-1]],  lon[r0, cols[::-1]]
+
+    lats = np.concatenate([left_lat, bottom_lat, right_lat, top_lat])
+    lons = np.concatenate([left_lon, bottom_lon, right_lon, top_lon])
+
+    valid = np.isfinite(lats) & np.isfinite(lons)
+    if valid.sum() < min_pixels:
+        return None
+    return lons[valid], lats[valid]
+
+
+def draw_swath_border(
+    ax: plt.Axes,
+    lons: np.ndarray,
+    lats: np.ndarray,
+    color: str = "#3A3A3A",
+    linestyle: str = "--",
+    linewidth: float = 1.15,
+    alpha: float = 0.95,
+    zorder: float = 6,
+) -> None:
+    """Draw a dashed geographic outline (e.g. a cross-sensor overlap frame)."""
+    ax.plot(lons, lats, transform=ccrs.PlateCarree(),
+            color=color, linestyle=linestyle, linewidth=linewidth,
+            alpha=alpha, zorder=zorder, solid_capstyle="round")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

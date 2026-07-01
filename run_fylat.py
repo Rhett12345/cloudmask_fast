@@ -36,6 +36,24 @@ DEFAULT_NWP_PATH = "/data/nwp/"
 DEFAULT_OISST_PATH = "/data/Data_minmin/oisst/"
 DEFAULT_OUTPUT_PATH = "/data/Data_yuq/fy3_cloud/"
 DEFAULT_OISST_FILE = "sst.day.mean.20200401.hdf5"
+SUPPORTED_CLOUDMASK_BACKENDS = {"fortran", "cpp_ocean_day", "auto"}
+
+
+def cloudmask_backend_name() -> str:
+    """Return the selected cloud-mask backend.
+
+    The production path remains the Fortran implementation.  Experimental C++
+    detector work is guarded behind this environment variable so migration
+    tests can be wired before any default behavior changes.
+    """
+    backend = os.environ.get("FYLAT_CLOUDMASK_BACKEND", "fortran").lower()
+    if backend not in SUPPORTED_CLOUDMASK_BACKENDS:
+        supported = ", ".join(sorted(SUPPORTED_CLOUDMASK_BACKENDS))
+        raise ValueError(
+            f"Unsupported FYLAT_CLOUDMASK_BACKEND: {backend}. "
+            f"Expected one of: {supported}"
+        )
+    return backend
 
 
 # ---------------------------------------------------------------------------
@@ -547,6 +565,12 @@ Examples:
 
     code_root = PROJECT_ROOT
     calibrations = [c.strip() for c in args.calibrations.split(",")]
+    cloudmask_backend = cloudmask_backend_name()
+    if cloudmask_backend != "fortran":
+        print(
+            f"\n  FYLAT_CLOUDMASK_BACKEND={cloudmask_backend} is reserved for "
+            "M3 experiments; production retrieval still uses Fortran."
+        )
 
     # =====================================================================
     # Step 1: Discover time slots

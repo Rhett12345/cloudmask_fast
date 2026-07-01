@@ -37,7 +37,7 @@ Compiler toolchain: `ifort` (Fortran), `icc` (C), `h5fc` (HDF5 Fortran wrapper).
 
 1. Read Fortran namelist config (`.nml`) — sensor ID, NWP source, I/O paths, algorithm toggles
 2. Load FY-3D MERSI-II GEO + L1b HDF5 (25 channels: 19 reflective + 6 IR) — `io_module.f90`
-3. Load NWP data (GRIB2 → binary via wgrib2), interpolate to observation time and 101 pressure levels — `read_nwp_data_module.f90`, `nwp_utils_module.f90`
+3. Load NWP data (GRIB2 → Fortran-compatible binary via Python ecCodes by default; wgrib2 fallback optional), interpolate to observation time and 101 pressure levels — `python/fylat/nwp_reader.py`, `read_nwp_data_module.f90`, `nwp_utils_module.f90`
 4. Load ancillary data (snow/ice, ecosystem, emissivity, albedo, OISST), run RTM (PFAAST) for clear-sky brightness temperatures — `get_ancil_data_module.f90`, `rtm_tran_module.f90`, `rtm_utils_module.f90`
 5. Run cloud mask decision tree per-pixel — `fylat_fy3mersi_cloud_mask.f90`
 6. Write L2 HDF5 output, optionally cloud amount (5 km) and SST
