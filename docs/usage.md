@@ -263,13 +263,13 @@ python scripts/compare_clm_regression.py \
 ### MYD35 精度与分层诊断
 
 ```bash
-python analyze_accuracy.py --date 20220803 --output accuracy_20220803.json
+python diagnostics/analyze_accuracy.py --date 20220803 --output diagnostics/accuracy_20220803.json
 ```
 
 默认输出 Overall、纬度带、day/night、SZA 分箱、BT11 温度分箱、海岸/内陆水体、NWP forecast age 和重点光谱特征诊断。若只需要快速二分类指标，可跳过 L1B 光谱统计：
 
 ```bash
-python analyze_accuracy.py --date 20220803 --no-spectral-diagnostics
+python diagnostics/analyze_accuracy.py --date 20220803 --no-spectral-diagnostics
 ```
 
 ## 常见问题

@@ -3,8 +3,8 @@
 batch_run.py — Multi-date batch inversion for FYLAT cloud mask.
 
 Usage:
-  python batch_run.py --start 20180103 --end 20250302 --cores 8
-  python batch_run.py --cores 8 --dry-run
+  python scripts/batch_run.py --start 20180103 --end 20250302 --cores 8
+  python scripts/batch_run.py --cores 8 --dry-run
 """
 
 import argparse

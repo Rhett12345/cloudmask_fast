@@ -62,7 +62,7 @@ from plot_utils import (
     make_geo_ax_with_caption, add_gridlines, panel_label, panel_title,
     panel_caption,
     plot_rgb, plot_rgb_placeholder, plot_clm, plot_diff,
-    compute_swath_border, draw_swath_border,
+    # compute_swath_border, draw_swath_border,
     add_clm_colorbar, add_diff_colorbar,
     stats_caption_text, agreement_caption_text,
     get_extent, subsample, save_figure, normalize_longitudes_for_plot,
@@ -172,6 +172,147 @@ def _bt_caption(bt: np.ndarray) -> str:
             f"mean {valid.mean():.1f} K  ·  "
             f"max {valid.max():.1f} K")
 
+def _draw_overlap_frame(
+    ax,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    overlap_mask: np.ndarray,
+    step: int = 4,
+) -> None:
+    """
+    在地图上绘制重叠区域的最外层包络框。
+
+    overlap_mask 必须与面板 (e) 使用的是同一个掩膜。
+    内部孔洞和扫描线缺口不会被单独描边。
+    """
+    import cartopy.crs as ccrs
+
+    la = subsample(lat, step)
+    lo0 = subsample(lon, step)
+    mask = subsample(overlap_mask, step).astype(bool)
+
+    # 与 plot_diff 使用相同的经度处理
+    lo = normalize_longitudes_for_plot(lo0, lon)
+
+    mask &= np.isfinite(la) & np.isfinite(lo)
+
+    # 找出存在重叠像元的扫描行
+    rows = np.where(mask.any(axis=1))[0]
+
+    if rows.size < 2:
+        return
+
+    left_edge = []
+    right_edge = []
+
+    for row in rows:
+        cols = np.where(mask[row])[0]
+
+        if cols.size == 0:
+            continue
+
+        left_col = cols[0]
+        right_col = cols[-1]
+
+        left_edge.append([
+            lo[row, left_col],
+            la[row, left_col],
+        ])
+
+        right_edge.append([
+            lo[row, right_col],
+            la[row, right_col],
+        ])
+
+    if len(left_edge) < 2:
+        return
+
+    # 左侧由上到下，右侧由下到上，组成闭合外框
+    border = np.asarray(
+        left_edge +
+        right_edge[::-1] +
+        [left_edge[0]],
+        dtype=np.float64,
+    )
+
+    ax.plot(
+        border[:, 0],
+        border[:, 1],
+        color="#252525",
+        linewidth=1.1,
+        linestyle="--",
+        transform=ccrs.PlateCarree(),
+        zorder=9,
+    )
+
+def _combined_map_geometry(
+    mersi_lat: np.ndarray,
+    mersi_lon: np.ndarray,
+    mersi_clm: np.ndarray,
+    myd35_lat: np.ndarray,
+    myd35_lon: np.ndarray,
+    myd35_clm: np.ndarray,
+    step: int = 4,
+    pad: float = 1.5,
+) -> tuple[list | None, np.ndarray | None, np.ndarray | None]:
+    """
+    计算 MERSI 和 MYD35 完整有效观测区域的联合显示范围。
+
+    返回
+    ----
+    common_extent:
+        [lon_min, lon_max, lat_min, lat_max]
+    reference_lat/reference_lon:
+        两颗卫星的联合经纬度，用于选择统一地图投影。
+
+    这里使用两颗卫星共同的经度参考系处理跨 180° 情况，
+    不能分别计算 extent 后再直接取 min/max。
+    """
+    lat_parts = []
+    lon_parts = []
+
+    datasets = [
+        (mersi_lat, mersi_lon, mersi_clm),
+        (myd35_lat, myd35_lon, myd35_clm),
+    ]
+
+    for lat, lon, clm in datasets:
+        la = subsample(lat, step)
+        lo = subsample(lon, step)
+        cm = subsample(clm, step)
+
+        valid = (
+            np.isfinite(la) &
+            np.isfinite(lo) &
+            (cm >= 0)
+        )
+
+        if valid.any():
+            lat_parts.append(la[valid].astype(np.float64))
+            lon_parts.append(lo[valid].astype(np.float64))
+
+    if not lat_parts:
+        return None, None, None
+
+    reference_lat = np.concatenate(lat_parts)
+    reference_lon = np.concatenate(lon_parts)
+
+    # 两颗卫星必须共用同一个经度展开参考。
+    # 例如 170°E 和 170°W 应组合成 170～190°，
+    # 而不是错误地组合成 -170～170°。
+    plot_lon = normalize_longitudes_for_plot(
+        reference_lon,
+        reference_lon,
+    )
+
+    common_extent = [
+        float(np.nanmin(plot_lon)) - pad,
+        float(np.nanmax(plot_lon)) + pad,
+        float(np.nanmin(reference_lat)) - pad,
+        float(np.nanmax(reference_lat)) + pad,
+    ]
+
+    return common_extent, reference_lat, reference_lon
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Diff panel (MYD35 − MERSI recal)
@@ -241,10 +382,36 @@ def _build_figure3(
     """Render and save Figure 3.  Returns validation stats dict."""
     apply_nature_style()
 
-    projection, is_polar = choose_projection(mersi_lat, mersi_lon)
+    # projection, is_polar = choose_projection(mersi_lat, mersi_lon)
 
     myd35_resampled = myd35_data["clm_resampled"]
     dt_min = myd35_data.get("dt_diff_min", 0.0)
+
+    # MERSI + MYD35 的完整联合观测范围。
+    # 五个地图子图都使用这个 extent。
+    common_extent, projection_lat, projection_lon = _combined_map_geometry(
+        mersi_lat=mersi_lat,
+        mersi_lon=mersi_lon,
+        mersi_clm=recal_clm,
+        myd35_lat=myd35_data["lat"],
+        myd35_lon=myd35_data["lon"],
+        myd35_clm=myd35_data["clm_native"],
+        step=step,
+        pad=1.5,
+    )
+
+    # 地图投影也必须依据两颗卫星的联合经纬度选择，
+    # 不能只依据 MERSI，否则两轨分居 180° 两侧时地图接缝可能错误。
+    if projection_lat is not None and projection_lon is not None:
+        projection, is_polar = choose_projection(
+            projection_lat,
+            projection_lon,
+        )
+    else:
+        projection, is_polar = choose_projection(
+            mersi_lat,
+            mersi_lon,
+        )
 
     # Strict per-pixel overlap on the MERSI grid: both recal_clm AND the
     # resampled MYD35 must be valid there. This single mask drives (i) the
@@ -254,7 +421,7 @@ def _build_figure3(
         np.isfinite(mersi_lat) & np.isfinite(mersi_lon) &
         (recal_clm >= 0) & (myd35_resampled >= 0)
     )
-    overlap_border = compute_swath_border(mersi_lat, mersi_lon, overlap_full)
+    # overlap_border = compute_swath_border(mersi_lat, mersi_lon, overlap_full)
 
     # Two extents: each sensor's OWN full footprint, not the (small)
     # intersection between them. This is deliberate — panels (a)/(b)/(d)/(e)
@@ -262,11 +429,12 @@ def _build_figure3(
     # this orbit; panel (c) is the MYD35 "truth" granule and should show its
     # own full extent. The dashed frame added below then marks, within that
     # full picture, exactly which part is shared with the other sensor.
-    mersi_extent = get_extent(mersi_lat, mersi_lon, recal_clm, step=step)
-    myd35_extent = get_extent(myd35_data["lat"], myd35_data["lon"],
-                               myd35_data["clm_native"], step=step)
-    if myd35_extent is None:
-        myd35_extent = mersi_extent
+
+    # mersi_extent = get_extent(mersi_lat, mersi_lon, recal_clm, step=step)
+    # myd35_extent = get_extent(myd35_data["lat"], myd35_data["lon"],
+    #                            myd35_data["clm_native"], step=step)
+    # if myd35_extent is None:
+    #     myd35_extent = mersi_extent
 
     # ── Canvas ───────────────────────────────────────────────────────
     fig_w = PANEL_WIDTH_IN * 3 + 1.90
@@ -303,8 +471,7 @@ def _build_figure3(
         plot_rgb(ax, mersi_lat, mersi_lon, mersi_rgb, step=step)
     else:
         plot_rgb_placeholder(ax, mersi_lat, mersi_lon, recal_clm, step=step)
-    set_geo_extent(ax, mersi_extent)
-    add_gridlines(ax)
+    set_geo_extent(ax, common_extent)
 
     # ── (b) IR 10.8 µm BT ───────────────────────────────────────────
     ax = axs_geo[1]
@@ -319,17 +486,24 @@ def _build_figure3(
                 fontsize=8, color=MUTED_TEXT,
                 bbox=dict(boxstyle="round,pad=0.35,rounding_size=0.08",
                           fc="white", ec="#D8D8D8", lw=0.5, alpha=0.9))
-    set_geo_extent(ax, mersi_extent)
+    set_geo_extent(ax, common_extent)
     add_gridlines(ax)
 
     # ── (c) MYD35 CLM on native grid ────────────────────────────────
     ax = axs_geo[2]
     plot_clm(ax, myd35_data["lat"], myd35_data["lon"],
              myd35_data["clm_native"], step=step)
-    set_geo_extent(ax, myd35_extent)
+    set_geo_extent(ax, common_extent)
     add_gridlines(ax)
-    if overlap_border is not None:
-        draw_swath_border(ax, *overlap_border)
+    # if overlap_border is not None:
+    #     draw_swath_border(ax, *overlap_border)
+    _draw_overlap_frame(
+        ax,
+        mersi_lat,
+        mersi_lon,
+        overlap_full,
+        step=step,
+    )
     add_clm_colorbar(fig, ax)
     dt_str = f"Δt = {dt_min:.1f} min" if dt_min else ""
     panel_caption(ax, stats_caption_text(myd35_data["clm_native"]) +
@@ -337,21 +511,31 @@ def _build_figure3(
 
     # ── (d) MERSI recal CLM (overlap region) ────────────────────────
     ax = axs_geo[3]
-    recal_ov = np.where(overlap_full, recal_clm, -1)
-    plot_clm(ax, mersi_lat, mersi_lon, recal_ov, step=step)
-    set_geo_extent(ax, mersi_extent)
+    # recal_ov = np.where(overlap_full, recal_clm, -1)
+    plot_clm(ax, mersi_lat, mersi_lon,
+             # recal_ov,
+             recal_clm,
+             step=step)
+    set_geo_extent(ax, common_extent)
     add_gridlines(ax)
-    if overlap_border is not None:
-        draw_swath_border(ax, *overlap_border)
+    # if overlap_border is not None:
+    #     draw_swath_border(ax, *overlap_border)
+    _draw_overlap_frame(
+        ax,
+        mersi_lat,
+        mersi_lon,
+        overlap_full,
+        step=step,
+    )
     add_clm_colorbar(fig, ax)
-    panel_caption(ax, stats_caption_text(recal_ov))
+    panel_caption(ax, stats_caption_text(recal_clm))
 
     # ── (e) MYD35 − Recal diff (overlap only) ───────────────────────
     ax = axs_geo[4]
     stats_recal = _diff_panel_myd_minus_recal(
         ax, fig, mersi_lat, mersi_lon, recal_clm, myd35_resampled,
         step=step, overlap_mask=overlap_full)
-    set_geo_extent(ax, mersi_extent)
+    set_geo_extent(ax, common_extent)
     add_gridlines(ax)
 
     # ── (f) Confusion matrix ─────────────────────────────────────────
@@ -375,12 +559,12 @@ def _build_figure3(
         + (f"\nMYD35: {myd_basename}" if myd_basename else ""),
         fontsize=10.1, fontweight="semibold", color=TEXT_COLOR, y=0.975)
 
-    if overlap_border is not None:
-        fig.text(0.045, 0.012,
-                 "Dashed frame in (c) and (d): pixel-level overlap between "
-                 "MERSI recal CLM and MYD35 — the same region used in the "
-                 "diff panel (e).",
-                 fontsize=6.8, color=MUTED_TEXT, ha="left", va="bottom")
+    # if overlap_border is not None:
+    #     fig.text(0.045, 0.012,
+    #              "Dashed frame in (c) and (d): pixel-level overlap between "
+    #              "MERSI recal CLM and MYD35 — the same region used in the "
+    #              "diff panel (e).",
+    #              fontsize=6.8, color=MUTED_TEXT, ha="left", va="bottom")
 
     save_figure(fig, output)
     return {"recal": stats_recal}
@@ -461,7 +645,7 @@ def make_figure3_from_files(
     output:          str   = "figure3.png",
     mersi_root:      str   = "/data/Data_yuq/mersi",
     step:            int   = 4,
-    time_window_min: int   = 15,
+    time_window_min: int   = 10,
     min_overlap:     float = 0.05,
 ) -> dict | None:
     """

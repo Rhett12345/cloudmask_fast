@@ -421,7 +421,7 @@ def make_geo_ax(fig: plt.Figure, spec, projection=None) -> plt.Axes:
 def make_geo_ax_with_caption(
     fig: plt.Figure,
     spec,
-    caption_frac: float = 0.12,
+    caption_frac: float = 0.17,
     projection=None,
 ) -> plt.Axes:
     """
@@ -451,7 +451,7 @@ def make_geo_ax_with_caption(
     inner = GridSpecFromSubplotSpec(
         2, 1, subplot_spec=spec,
         height_ratios=[1 - caption_frac, caption_frac],
-        hspace=0.0,
+        hspace=0.12,
     )
     ax     = fig.add_subplot(inner[0, 0], projection=projection)
     cap_ax = fig.add_subplot(inner[1, 0])
@@ -532,9 +532,9 @@ def panel_caption(ax: plt.Axes, text: str, fontsize: float = 7.5) -> None:
     if cap_ax is not None:
         cap_ax.clear()
         cap_ax.set_axis_off()
-        cap_ax.text(0.0, 0.95, text, transform=cap_ax.transAxes,
+        cap_ax.text(0.0, 0.42, text, transform=cap_ax.transAxes,
                     fontsize=fontsize, color=MUTED_TEXT,
-                    va="top", ha="left", linespacing=1.3,
+                    va="center", ha="left", linespacing=1.3,
                     wrap=True)
         return
 

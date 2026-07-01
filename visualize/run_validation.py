@@ -77,7 +77,7 @@ def run_single_orbit(
     output_dir:      str       = "./output",
     mersi_root:      str       = "/data/Data_yuq/mersi",
     step:            int       = 4,
-    time_window_min: int       = 15,
+    time_window_min: int       = 10,
     min_overlap:     float     = 0.50,
     skip_fig1:       bool      = False,
     skip_fig2:       bool      = False,
@@ -267,7 +267,7 @@ def run_batch(
     output_dir:      str   = "./output",
     mersi_root:      str   = "/data/Data_yuq/mersi",
     step:            int   = 4,
-    time_window_min: int   = 15,
+    time_window_min: int   = 10,
     min_overlap:     float = 0.50,
     overwrite:       bool  = False,
     skip_fig1:       bool  = False,
@@ -365,8 +365,8 @@ Examples:
     parser.add_argument("--mersi_root",  default="/data/Data_yuq/mersi")
     parser.add_argument("--step",        type=int,   default=4,
                         help="Subsampling step (4 = every 4th pixel)")
-    parser.add_argument("--time_window", type=int,   default=15,
-                        help="MYD35 temporal search window in minutes (default 15)")
+    parser.add_argument("--time_window", type=int,   default=10,
+                        help="MYD35 temporal search window in minutes (default 10)")
     parser.add_argument("--min_overlap", type=float, default=0.50,
                         help="Minimum spatial overlap fraction (default 0.05)")
     parser.add_argument("--overwrite",   action="store_true",

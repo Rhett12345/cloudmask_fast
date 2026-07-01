@@ -60,7 +60,7 @@ from plot_utils import (
 MYD35_TO_CLM = {0: 0, 1: 1, 2: 2, 3: 3}
 
 # Maximum time difference for a granule to be considered "matching" (minutes)
-DEFAULT_TIME_WINDOW_MIN = 15
+DEFAULT_TIME_WINDOW_MIN = 10
 
 # Minimum fractional overlap to accept a granule (0–1)
 DEFAULT_MIN_OVERLAP = 0.50
@@ -234,19 +234,114 @@ def _read_myd03_geo(myd03_path: str, target_shape: tuple) -> tuple:
     return lat, lon
 
 
-def _read_myd35_5km_geo(hdf, target_shape: tuple) -> tuple:
-    """Read 5-km geo from MYD35 and upsample to 1-km."""
+# def _read_myd35_5km_geo(hdf, target_shape: tuple) -> tuple:
+#     """Read 5-km geo from MYD35 and upsample to 1-km."""
+#     lat5 = hdf.select("Latitude").get().astype(np.float64)
+#     lon5 = hdf.select("Longitude").get().astype(np.float64)
+#     from scipy.ndimage import zoom
+#     zy = target_shape[0] / lat5.shape[0]
+#     zx = target_shape[1] / lat5.shape[1]
+#     lat = zoom(lat5, (zy, zx), order=1)
+#     lon = zoom(lon5, (zy, zx), order=1)
+#     lat = _match_shape(lat, target_shape)
+#     lon = _match_shape(lon, target_shape)
+#     return lat, lon
+
+def _read_myd35_5km_geo(
+    hdf,
+    target_shape: tuple,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Read MYD35 internal 5-km geolocation and interpolate to 1 km.
+
+    Longitude is interpolated on the unit circle, not directly in degrees,
+    so dateline-crossing swaths do not create artificial global longitudes.
+    """
+    from scipy.ndimage import zoom
+
     lat5 = hdf.select("Latitude").get().astype(np.float64)
     lon5 = hdf.select("Longitude").get().astype(np.float64)
-    from scipy.ndimage import zoom
+
+    valid5 = (
+        np.isfinite(lat5) &
+        np.isfinite(lon5) &
+        (lat5 >= -90.0) &
+        (lat5 <= 90.0) &
+        (lon5 >= -180.0) &
+        (lon5 <= 180.0)
+    )
+
     zy = target_shape[0] / lat5.shape[0]
     zx = target_shape[1] / lat5.shape[1]
-    lat = zoom(lat5, (zy, zx), order=1)
-    lon = zoom(lon5, (zy, zx), order=1)
-    lat = _match_shape(lat, target_shape)
-    lon = _match_shape(lon, target_shape)
-    return lat, lon
+    zoom_factor = (zy, zx)
 
+    # 插值权重，避免填充值污染周围像元
+    weight = zoom(
+        valid5.astype(np.float64),
+        zoom_factor,
+        order=1,
+    )
+
+    # 纬度普通线性插值
+    lat_num = zoom(
+        np.where(valid5, lat5, 0.0),
+        zoom_factor,
+        order=1,
+    )
+
+    # 经度转换到单位圆后插值
+    lon_rad = np.deg2rad(lon5)
+
+    sin_num = zoom(
+        np.where(valid5, np.sin(lon_rad), 0.0),
+        zoom_factor,
+        order=1,
+    )
+
+    cos_num = zoom(
+        np.where(valid5, np.cos(lon_rad), 0.0),
+        zoom_factor,
+        order=1,
+    )
+
+    weight = _match_shape(weight, target_shape)
+    lat_num = _match_shape(lat_num, target_shape)
+    sin_num = _match_shape(sin_num, target_shape)
+    cos_num = _match_shape(cos_num, target_shape)
+
+    good = weight > 1.0e-6
+
+    lat = np.full(target_shape, np.nan, dtype=np.float64)
+    lon = np.full(target_shape, np.nan, dtype=np.float64)
+
+    lat[good] = lat_num[good] / weight[good]
+
+    sin_interp = np.zeros(target_shape, dtype=np.float64)
+    cos_interp = np.zeros(target_shape, dtype=np.float64)
+
+    sin_interp[good] = sin_num[good] / weight[good]
+    cos_interp[good] = cos_num[good] / weight[good]
+
+    lon[good] = np.rad2deg(
+        np.arctan2(
+            sin_interp[good],
+            cos_interp[good],
+        )
+    )
+
+    lat = np.where(
+        (lat >= -90.0) & (lat <= 90.0),
+        lat,
+        np.nan,
+    )
+
+    lon = np.where(
+        (lon >= -180.0) & (lon <= 180.0),
+        lon,
+        np.nan,
+    )
+
+    return lat, lon
 
 def _match_shape(arr: np.ndarray, target: tuple) -> np.ndarray:
     """Crop or zero-pad array to target shape (H, W)."""
