@@ -159,8 +159,8 @@ def _derive_paths(cfg: Dict[str, Any]) -> Dict[str, str]:
 # ---------------------------------------------------------------------------
 # Namelist generation
 # ---------------------------------------------------------------------------
-def generate_namelist(cfg: Dict[str, Any]) -> str:
-    """Generate a Fortran namelist (.nml) string from merged YAML config."""
+def generate_legacy_namelist(cfg: Dict[str, Any]) -> str:
+    """Generate a legacy Fortran namelist (.nml) string from YAML config."""
     sensor = cfg.get("sensor", {})
     paths = cfg.get("paths", {})
     algo = cfg.get("algorithms", {})
@@ -203,12 +203,36 @@ def generate_namelist(cfg: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def generate_namelist(cfg: Dict[str, Any]) -> str:
+    """Compatibility alias for the legacy Fortran backend only."""
+    return generate_legacy_namelist(cfg)
+
+
 def write_namelist(cfg: Dict[str, Any], output_path: str) -> str:
     """Write the generated .nml file and return its path."""
-    nml_content = generate_namelist(cfg)
+    nml_content = generate_legacy_namelist(cfg)
     with open(output_path, "w") as f:
         f.write(nml_content + "\n")
     return output_path
+
+
+def ensure_legacy_output_dirs(cfg: Dict[str, Any]) -> None:
+    """Create output directories required by the legacy Fortran writer."""
+    pp = _derive_paths(cfg)
+    output_keys = [
+        "fy3_mersi_CLM_data",
+        "fy3_mersi_CLA_data",
+        "fy3_mersi_CLP_data",
+        "fy3_mersi_CTP_data",
+        "fy3_mersi_COT_data",
+        "fy3_mersi_CON_data",
+        "fy3_mersi_SST_data",
+        "fy3_intermediate",
+    ]
+    for key in output_keys:
+        path = pp.get(key, "")
+        if path:
+            Path(path).expanduser().parent.mkdir(parents=True, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -220,12 +244,21 @@ def setup_calibration(cfg: Dict[str, Any], code_root: str) -> None:
     Uses Python calibration module — no more manual .xcfg file management.
     The calibration field in YAML can be:
       - "business": use HDF5 built-in coefficients
-      - "recali": use default external recalibration
-      - "YYYYMMDD": use date-specific recalibration (e.g., "20200308")
+      - "recali": auto-derive YYYYMM from scene date
+      - "YYYYMM": use month-specific recalibration (e.g., "202208")
+      - "YYYYMMDD": truncated to YYYYMM for lookup
     """
     from fylat.calibration import setup_cal_mode, list_calibrations
 
     cal = cfg.get("scene", {}).get("calibration", "business")
+
+    # Normalize aliases to YYYYMM keys
+    if cal == "recali":
+        date = cfg.get("scene", {}).get("date", "")
+        cal = date[:6] if len(date) >= 6 else cal
+    elif len(cal) == 8 and cal.isdigit():
+        cal = cal[:6]
+
     available = list_calibrations()
     if cal not in available:
         print(f"  Warning: unknown calibration '{cal}', falling back to 'business'")
@@ -238,7 +271,8 @@ def setup_calibration(cfg: Dict[str, Any], code_root: str) -> None:
 # Convenience: run a single scene
 # ---------------------------------------------------------------------------
 def run_scene(scene_yaml_path: str, base_yaml_path: Optional[str] = None,
-              calibration: Optional[str] = None) -> int:
+              calibration: Optional[str] = None,
+              output_path: Optional[str] = None) -> int:
     """Full workflow for a single scene: load config → write .nml → run Fortran.
 
     Returns the exit code of the Fortran executable.
@@ -246,6 +280,8 @@ def run_scene(scene_yaml_path: str, base_yaml_path: Optional[str] = None,
     cfg = load_config(scene_path=scene_yaml_path, base_path=base_yaml_path)
     if calibration:
         cfg.setdefault("scene", {})["calibration"] = calibration
+    if output_path:
+        cfg.setdefault("paths", {})["output"] = output_path
     code_root = cfg.get("paths", {}).get("code_root", DEFAULT_CODE_ROOT)
 
     # Setup calibration
@@ -258,6 +294,7 @@ def run_scene(scene_yaml_path: str, base_yaml_path: Optional[str] = None,
     nml_path = os.path.join(code_root, f"temp_fy3d_config_{date}_{time}.nml")
 
     # Write namelist
+    ensure_legacy_output_dirs(cfg)
     write_namelist(cfg, nml_path)
     print(f"  Config written to: {nml_path}")
 
